@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -ex -o pipefail
+
+cat x.x | ./x x.x
