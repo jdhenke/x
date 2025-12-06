@@ -140,8 +140,7 @@
     (define f (list
       "function"
       (lambda (args)
-        ;; loop through body and eval each, returning the last
-        (let ((env (list (zip argnames args) env))) ;;; FIXME: bind args and func name
+        (let ((env (list (cons (list funcname f) (zip argnames args)) env)))
           (let loop ((body body) (last #f))
             (if (null? body)
               last

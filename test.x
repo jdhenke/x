@@ -8,3 +8,19 @@
   (add-five (add-five x)))
 
 (add-five-twice 10)
+
+(define (id x) x)
+
+((id add-five) 7)
+
+(define (self) self)
+
+(self)
+
+(define (twice f)
+  (define (out x)
+    (f (f x)))
+  out)
+
+((twice add-five) 4)
+
