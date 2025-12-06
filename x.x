@@ -132,13 +132,11 @@
           (else (apply-func (eval (car l) env) (map (lambda (s) (eval s env)) (cdr l)))))))
 
 (define (define-func sexpr env)
-  (log sexpr "sexpr")
   (let* ((clause (cadadr sexpr))
          (names (map cadr (cadr clause)))
          (funcname (car names))
          (argnames (cdr names))
          (body (cddadr sexpr)))
-    (log body "body")
     (define f (list
       "function"
       (lambda (args)
