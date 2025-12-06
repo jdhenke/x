@@ -46,7 +46,7 @@
     (if (char=? (peek-char) #\))
       (begin
         (read-char)
-        (cons 'list vals))
+        (list 'list vals))
       (let ((val (read)))
         (if (eof-object? val)
           (error "unexpected EOF reading list")
@@ -114,7 +114,7 @@
           ((equal? type 'symbol)
            (lookup env (cadr sexpr)))
           ((equal? type 'list)
-           (apply-func (eval (cadr sexpr) env) (map (lambda (s) (eval s env)) (cddr sexpr))))
+           (eval-verb sexpr env))
           (else #f))))
 
 (define (lookup env name)
@@ -123,7 +123,33 @@
     (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
       (if d
         (cadr d)
-        (if parent (lookup parent name) #f)))))
+        (if parent (lookup parent name) (error (string-append "undefined: " name)))))))
+
+(define (eval-verb sexpr env)
+  (let ((l (cadr sexpr)))
+    (cond ((null? l) (list "list" '()))
+          ((equal? (cadar l) "define") (define-func sexpr env))
+          (else (apply-func (eval (car l) env) (map (lambda (s) (eval s env)) (cdr l)))))))
+
+(define (define-func sexpr env)
+  (log sexpr "sexpr")
+  (let* ((clause (cadadr sexpr))
+         (names (map cadr (cadr clause)))
+         (funcname (car names))
+         (argnames (cdr names))
+         (body (cddadr sexpr)))
+    (log body "body")
+    (define f (list
+      "function"
+      (lambda (args)
+        ;; loop through body and eval each, returning the last
+        (let ((env (list (zip argnames args) env))) ;;; FIXME: bind args and func name
+          (let loop ((body body) (last #f))
+            (if (null? body)
+              last
+              (loop (cdr body) (eval (car body) env))))))))
+    (set-car! env (cons (list funcname f) (car env)))
+    f))
 
 (define (apply-func f args)
   ((cadr f) args))
