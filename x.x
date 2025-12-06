@@ -130,6 +130,7 @@
     (cond ((null? l) (list "list" '()))
           ((equal? (cadar l) "define") (define-func sexpr env))
           ((equal? (cadar l) "lambda") (define-lambda sexpr env))
+          ((equal? (cadar l) "if") (eval-if sexpr env))
           (else (apply-func (eval (car l) env) (map (lambda (s) (eval s env)) (cdr l)))))))
 
 (define (define-func sexpr env)
@@ -164,6 +165,15 @@
               (loop (cdr body) (eval (car body) env))))))))
     f))
 
+(define (eval-if sexpr env)
+  (let* ((clauses (cadr sexpr))
+         (p (cadr clauses))
+         (t (caddr clauses))
+         (f (cadddr clauses)))
+    (let ((pv (eval p env)))
+      (if (> (cadr pv) 0)
+        (eval t env)
+        (eval f env)))))
 
 (define (apply-func f args)
   ((cadr f) args))
@@ -171,7 +181,9 @@
 (define global
   (list
     (list
-      (list "+" (list "function" (lambda (args) (begin (list "number" (apply + (map cadr args))))))))
+      (list "+" (list "function" (lambda (args) (begin (list "number" (apply + (map cadr args)))))))
+      (list "<" (list "function" (lambda (args) (begin (list "number" (if (apply < (map cadr args)) 1 0))))))
+      (list "-" (list "function" (lambda (args) (begin (list "number" (apply - (map cadr args))))))))
     #f))
 
 (let loop ()
