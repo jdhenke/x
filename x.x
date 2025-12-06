@@ -95,24 +95,51 @@
         (list 'string (list->string s)))
       (error "invalid end of string" (peek-char)))))
 
+;;; bytes --(read)-> sexpr --(eval)--> value
+
+
+;;; value -> number, string, list, function
+;;; ("number" 4)
+;;; ("string" "hello")
+;;; ("list" (...value...))
+;;; ("function" env args (...sexpr...))
+
+(define (eval sexpr env) ;; --> Value
+  (let ((type (car sexpr)))
+    (cond ((or
+             (equal? type 'string)
+             (equal? type 'literal)
+             (equal? type 'char)
+             (equal? type 'number)) sexpr)
+          ((equal? type 'symbol)
+           (lookup env (cadr sexpr)))
+          ((equal? type 'list)
+           (apply-func (eval (cadr sexpr) env) (map (lambda (s) (eval s env)) (cddr sexpr))))
+          (else #f))))
+
+(define (lookup env name)
+  (let ((defs (car env))
+        (parent (cadr env)))
+    (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
+      (if d
+        (cadr d)
+        (if parent (lookup parent name) #f)))))
+
+(define (apply-func f args)
+  ((cadr f) args))
+
+(define global
+  (list
+    (list
+      (list "+" (list "function" (lambda (args) (begin (list "number" (apply + (map cadr args))))))))
+    #f))
+
 (let loop ()
   (let ((sexpr (read)))
     (if (eof-object? sexpr)
       #t
       (begin 
-        (pretty-print sexpr)
+        (pretty-print (eval sexpr global))
         (newline)
         (loop)))))
 
-;(define (eval sexpr))
-;
-;(define (print sexpr))
-;
-;;;; standard library
-;(define (repl)
-;  (let loop ()
-;    (print (eval (read)))
-;    (loop)))
-;
-;;;; main
-;(repl)
