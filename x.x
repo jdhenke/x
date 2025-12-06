@@ -129,6 +129,7 @@
   (let ((l (cadr sexpr)))
     (cond ((null? l) (list "list" '()))
           ((equal? (cadar l) "define") (define-func sexpr env))
+          ((equal? (cadar l) "lambda") (define-lambda sexpr env))
           (else (apply-func (eval (car l) env) (map (lambda (s) (eval s env)) (cdr l)))))))
 
 (define (define-func sexpr env)
@@ -147,6 +148,22 @@
               (loop (cdr body) (eval (car body) env))))))))
     (set-car! env (cons (list funcname f) (car env)))
     f))
+
+(define (define-lambda sexpr env)
+  (let* ((clause (cadadr sexpr))
+         (names (map cadr (cadr clause)))
+         (argnames names)
+         (body (cddadr sexpr)))
+    (define f (list
+      "function"
+      (lambda (args)
+        (let ((env (list (zip argnames args) env)))
+          (let loop ((body body) (last #f))
+            (if (null? body)
+              last
+              (loop (cdr body) (eval (car body) env))))))))
+    f))
+
 
 (define (apply-func f args)
   ((cadr f) args))
