@@ -102,7 +102,6 @@
         ((equal? (car sexpr) (symbol "cond"))   (eval-cond sexpr env))
         ((equal? (car sexpr) (symbol "let"))    (eval-let sexpr env))
         ((equal? (car sexpr) (symbol "let*"))   (eval-let sexpr env))
-        ((equal? (car sexpr) (symbol "apply"))  (apply-func sexpr env))
         (#t                                     (call-func sexpr env))))
 
 (define (eval-define sexpr env)
@@ -116,7 +115,7 @@
         (body (cddr sexpr)))
     (define f (lambda (args)
       (let ((env (list (cons (list funcname f) (zip argnames args)) env)))
-        (let loop ((body body) (last 0))
+        (let loop ((body body) (last #f))
           (if (null? body)
             last
             (loop (cdr body) (eval (car body) env)))))))
@@ -126,18 +125,19 @@
 (define (define-var sexpr env)
   (let ((name (string (second sexpr)))
         (val (eval (third sexpr) env)))
-    (set-car! env (cons (list name val) env))
+    (set-car! env (cons (list name val) (car env)))
     val))
 
 (define (define-lambda sexpr env)
-  (let* ((argnames (map string (cadr sexpr)))
-         (body (cddr sexpr)))
-    (lambda (args)
-      (let ((env (list (zip argnames args) env)))
-        (let loop ((body body) (last 0))
-          (if (null? body)
-            last
-            (loop (cdr body) (eval (car body) env))))))))
+  (lambda (args)
+    (let* ((binds (if (list? (second sexpr))
+                    (zip (map string (cadr sexpr)) args)
+                    (list (list (string (second sexpr)) args))))
+           (lenv (list binds env)))
+      (let loop ((body (cddr sexpr)) (last 0))
+        (if (null? body)
+          last
+          (loop (cdr body) (eval (car body) lenv)))))))
 
 (define (eval-if sexpr env)
   (let* ((p (cadr sexpr))
@@ -175,11 +175,6 @@
                  (val (eval (cadar exprs) arg-env)))
             (arg-loop (cdr exprs) (cons val vals))))))))
 
-(define (apply-func sexpr env)
-  (let ((f (eval (second sexpr) env))
-        (args (eval (third sexpr) env)))
-    (f args)))
-
 (define (call-func sexpr env)
   (let ((f (eval (car sexpr) env))
         (args (map (lambda (s) (eval s env)) (cdr sexpr))))
@@ -201,7 +196,8 @@
       (list "<" (curry apply <))
       (list "-" (curry apply -))
       (list "list" (curry apply list))
-      (list "apply" (curry apply apply)))
+      (list "cons" (curry apply cons))
+      (list "apply" (lambda (args) (apply (car args) (cdr args)))))
     #f))
 
 ;;; REPL
@@ -214,5 +210,6 @@
         (pretty-print sexpr)
         (newline)
         (pretty-print (eval sexpr global))
+        (newline)
         (repl)))))
 
