@@ -109,7 +109,7 @@
 
 (define (eval-verb sexpr env)
   (cond ((null? sexpr) sexpr)
-        ((equal? (car sexpr) (symbol "define")) (define-func sexpr env))
+        ((equal? (car sexpr) (symbol "define")) (eval-define sexpr env))
         ((equal? (car sexpr) (symbol "lambda")) (define-lambda sexpr env))
         ((equal? (car sexpr) (symbol "if"))     (eval-if sexpr env))
         ((equal? (car sexpr) (symbol "cond"))   (eval-cond sexpr env))
@@ -117,6 +117,11 @@
         ((equal? (car sexpr) (symbol "let*"))   (eval-let sexpr env))
         ((equal? (car sexpr) (symbol "apply"))  (apply-func sexpr env))
         (#t                                     (call-func sexpr env))))
+
+(define (eval-define sexpr env)
+  (if (list? (second sexpr))
+    (define-func sexpr env)
+    (define-var sexpr env)))
 
 (define (define-func sexpr env)
   (let ((funcname (string (caadr sexpr)))
@@ -130,6 +135,12 @@
             (loop (cdr body) (eval (car body) env)))))))
     (set-car! env (cons (list funcname f) (car env)))
     f))
+
+(define (define-var sexpr env)
+  (let ((name (string (second sexpr)))
+        (val (eval (third sexpr) env)))
+    (set-car! env (cons (list name val) env))
+    val))
 
 (define (define-lambda sexpr env)
   (let* ((argnames (map string (cadr sexpr)))

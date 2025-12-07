@@ -38,4 +38,4 @@
 
 (apply + (list 1 2 3))
 
-#t
+(define t #t)
