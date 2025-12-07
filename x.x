@@ -1,26 +1,3 @@
-;;; native functions
-
-(define (peek-c)
-  (let ((c (peek-char)))
-    (if (eof-object? c)
-      c
-      (list->string (list c)))))
-
-(define (read-c)
-  (let ((c (read-char)))
-    (if (eof-object? c)
-      c
-      (list->string (list c)))))
-
-(define eof? eof-object?)
-
-(define (string-number? s)
-  (not (false? (string->number s))))
-
-(define (curry f . args)
-  (lambda foo
-    (apply f (append args foo))))
-
 ;;; READ
 
 (define (read-matching f)
@@ -68,12 +45,22 @@
 
 (define (read-string)
   (read-c)
-  (let ((s (read-matching (lambda (c) (not (equal? c "\""))))))
-    (if (equal? (peek-c) "\"")
-      (let ()
-        (read-c)
-        s)
-      (error "unexpected EOF reading string" (peek-char)))))
+  (let loop ((cs (list)))
+    (let ((c (peek-c)))
+      (if (or (eof? c) (equal? c "\""))
+        (let () (read-c) (apply string-append (reverse cs)))
+        (let ()
+          (if (equal? c "\\")
+              (let ()
+                (read-c)
+                (set! c (let ((ec (peek-c)))
+                  (cond ((equal? ec "\"") "\"")
+                        ((equal? ec "\\") "\\")
+                        ((equal? ec "n") "\n")
+                        ((equal? ec "\\") "\\")
+                        (#t (error "unrecognized escape" ec)))))))
+          (read-c)
+          (loop (cons c cs)))))))
 
 (define (read-symbol)
   (symbol
@@ -205,7 +192,7 @@
     (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
       (if d
         (cadr d)
-        (if parent (lookup parent name) (error (string-append "undefined: " name)))))))
+        (if parent (lookup parent name) (error (string-append "undefined: [" name "]")))))))
 
 (define global
   (list
@@ -213,7 +200,8 @@
       (list "+" (curry apply +))
       (list "<" (curry apply <))
       (list "-" (curry apply -))
-      (list "list" (curry apply list)))
+      (list "list" (curry apply list))
+      (list "apply" (curry apply apply)))
     #f))
 
 ;;; REPL
@@ -223,7 +211,8 @@
     (if (eof? sexpr)
       0
       (let ()
-        (pretty-print (eval sexpr global))
+        (pretty-print sexpr)
         (newline)
+        (pretty-print (eval sexpr global))
         (repl)))))
 
