@@ -1,197 +1,206 @@
-;;; syscalls
+;;; native functions
 
-;;; core interpreter
-
-(define (read)
-  (read-whitespace)
-  (let ((c (peek-char)))
-    (cond
-      ((eof-object? c) c)
-      ((char=? c #\#) (read-chr))
-      ((char=? c #\') (read-literal))
-      ((char=? c #\() (read-list))
-      ((char=? c #\") (read-str))
-      ((char-numeric? c) (read-number))
-      (else (read-symbol)))))
-
-(define (log x s)
-  (display s)
-  (display " ")
-  (display x)
-  (newline)
-  x)
-
-(define (read-chr)
-  (let* ((a (read-char))
-         (b (read-char))
-         (s (list a b)))
-    (if (char=? (cadr s) #\\)
-      (set! s (append s (list (read-char)))))
-    (list 'char (list->string (append s (read-char-matching (lambda (c) 
-          (not
-            (or
-              (eof-object? c)
-              (char=? c #\))
-              (char-whitespace? c)
-              (char=? c #\newline))))))))))
-
-(define (read-literal)
-  (read-char)
-  (list 'literal (read)))
-
-(define (read-list)
-  (read-char)
-  (read-whitespace)
-  (let loop ((vals '()))
-    (if (char=? (peek-char) #\))
-      (begin
-        (read-char)
-        (list 'list vals))
-      (let ((val (read)))
-        (if (eof-object? val)
-          (error "unexpected EOF reading list")
-          (loop (append vals (list val))))))))
-
-(define (read-whitespace)
-  (read-char-matching (lambda (c) (or (char-whitespace? c) (char=? c #\newline))))
+(define (peek-c)
   (let ((c (peek-char)))
     (if (eof-object? c)
       c
-      (if (char=? (peek-char) #\;)
-        (begin
-          (read-char-matching (lambda (c) (not (char=? c #\newline))))
+      (list->string (list c)))))
+
+(define (read-c)
+  (let ((c (read-char)))
+    (if (eof-object? c)
+      c
+      (list->string (list c)))))
+
+(define eof? eof-object?)
+
+(define (string-number? s)
+  (not (false? (string->number s))))
+
+(define (curry f . args)
+  (lambda foo
+    (apply f (append args foo))))
+
+;;; READ
+
+(define (read-matching f)
+  (apply string-append
+    (let loop ((matched (list)))
+      (let ((c (peek-c)))
+        (if (or (eof? c) (not (f c)))
+          (reverse matched)
+          (loop (cons (read-c) matched)))))))
+
+(define (read-whitespace)
+  (read-matching
+    (lambda (c)
+      (or
+        (equal? c " ")
+        (equal? c "\n"))))
+  (let ((c (peek-c)))
+    (if (eof? c)
+      c
+      (if (equal? (peek-c) ";")
+        (let ()
+          (read-matching (lambda (c) (not (equal? c "\n"))))
           (read-whitespace))
-        #f))))
+        0))))
+
+(define (read-list)
+  (read-c)
+  (read-whitespace)
+  (let loop ((vals (list)))
+    (if (equal? (peek-c) ")")
+      (let ()
+        (read-c)
+        (reverse vals))
+      (let ((val (read)))
+        (if (eof? val)
+          (error "unexpected EOF reading list")
+          (loop (cons val vals)))))))
 
 (define (read-number)
-  (list 'number (string->number (list->string (read-char-matching char-numeric?)))))
+  (string->number (read-matching string-number?)))
 
-(define (read-char-matching f)
-  (let ((c (peek-char)))
-    (cond ((or (eof-object? c) (not (f c))) (list))
-          (else (begin
-                  (read-char) 
-                  (cons c (read-char-matching f)))))))
+(define (read-string)
+  (read-c)
+  (let ((s (read-matching (lambda (c) (not (equal? c "\""))))))
+    (if (equal? (peek-c) "\"")
+      (let ()
+        (read-c)
+        s)
+      (error "unexpected EOF reading string" (peek-char)))))
 
 (define (read-symbol)
-  (list
-    'symbol
-    (list->string
-      (read-char-matching
-        (lambda (c) 
-          (not
-            (or
-              (eof-object? c)
-              (char=? c #\))
-              (char-whitespace? c)
-              (char=? c #\newline))))))))
+  (symbol
+    (read-matching
+      (lambda (c) 
+        (not
+          (or
+            (eof-object? c)
+            (equal? c ")")
+            (equal? c " ")
+            (equal? c "\n")))))))
 
-(define (read-str)
-  (read-char)
-  (let ((s (read-char-matching (lambda (c) (not (char=? c #\"))))))
-    (if (char=? (peek-char) #\")
-      (begin
-        (read-char)
-        (list 'string (list->string s)))
-      (error "invalid end of string" (peek-char)))))
+(define (read)
+  (read-whitespace)
+  (let ((c (peek-c)))
+    (cond
+      ((eof? c) c)
+      ((equal? c "(")        (read-list))
+      ((string-number? c)  (read-number))
+      ((equal? c "\"")       (read-string))
+      (#t                (read-symbol)))))
 
-;;; bytes --(read)-> sexpr --(eval)--> value
+;;; EVAL
 
+(define (eval sexpr env)
+  (cond ((list? sexpr) (eval-verb sexpr env))
+        ((number? sexpr) sexpr)
+        ((string? sexpr) sexpr)
+        ((symbol? sexpr) (lookup env sexpr))
+        (#t (error "unknown sexpr type" sexpr))))
 
-;;; value -> number, string, list, function
-;;; ("number" 4)
-;;; ("string" "hello")
-;;; ("list" (...value...))
-;;; ("function" env args (...sexpr...))
+(define (eval-verb sexpr env)
+  (cond ((null? sexpr) sexpr)
+        ((equal? (car sexpr) (symbol "define")) (define-func sexpr env))
+        ((equal? (car sexpr) (symbol "lambda")) (define-lambda sexpr env))
+        ((equal? (car sexpr) (symbol "if"))     (eval-if sexpr env))
+        ((equal? (car sexpr) (symbol "cond"))   (eval-cond sexpr env))
+        ((equal? (car sexpr) (symbol "let"))    (eval-let sexpr env))
+        ((equal? (car sexpr) (symbol "let*"))   (eval-let sexpr env))
+        ; apply
+        (#t (call-func sexpr env))))
 
-(define (eval sexpr env) ;; --> Value
-  (let ((type (car sexpr)))
-    (cond ((or
-             (equal? type 'string)
-             (equal? type 'literal)
-             (equal? type 'char)
-             (equal? type 'number)) sexpr)
-          ((equal? type 'symbol)
-           (lookup env (cadr sexpr)))
-          ((equal? type 'list)
-           (eval-verb sexpr env))
-          (else #f))))
+(define (define-func sexpr env)
+  (let ((funcname (string (caadr sexpr)))
+        (argnames (map string (cdadr sexpr)))
+        (body (cddr sexpr)))
+    (define f (lambda (args)
+      (let ((env (list (cons (list funcname f) (zip argnames args)) env)))
+        (let loop ((body body) (last 0))
+          (if (null? body)
+            last
+            (loop (cdr body) (eval (car body) env)))))))
+    (set-car! env (cons (list funcname f) (car env)))
+    f))
 
-(define (lookup env name)
-  (let ((defs (car env))
+(define (define-lambda sexpr env)
+  (let* ((argnames (map string (cadr sexpr)))
+         (body (cddr sexpr)))
+    (lambda (args)
+      (let ((env (list (zip argnames args) env)))
+        (let loop ((body body) (last 0))
+          (if (null? body)
+            last
+            (loop (cdr body) (eval (car body) env))))))))
+
+(define (eval-if sexpr env)
+  (let* ((p (cadr sexpr))
+         (t (caddr sexpr))
+         (f (cadddr sexpr))
+         (pv (eval p env)))
+    (eval (if pv t f) env)))
+
+(define (eval-cond sexpr env)
+  (let loop ((conds (cdr sexpr)))
+    (if (null? conds)
+      #f
+      (if (eval (caar conds) env)
+        (eval (cadar conds) env)
+        (loop (cdr conds))))))
+
+(define (eval-let sexpr env)
+  (let* ((let-name (if (list? (second sexpr)) #f (string (second sexpr))))
+         (arg-clause (find list? sexpr))
+         (argnames (map (lambda (p) (string (car p))) arg-clause))
+         (body (if let-name (cdddr sexpr) (cddr sexpr))))
+    (let ((env (list (list) env)))
+      (define (f args)
+        (let ((env (list (zip argnames args) env)))
+          (let body-loop ((body body) (last #f))
+            (if (null? body)
+              last
+              (body-loop (cdr body) (eval (car body) env))))))
+      (if let-name (set-car! env (list (list let-name f))) #f)
+      (let arg-loop ((exprs arg-clause)
+                     (vals (list)))
+        (if (null? exprs)
+          (f (reverse vals))
+          (let* ((arg-env (list (zip argnames (reverse vals)) env))
+                 (val (eval (cadar exprs) arg-env)))
+            (arg-loop (cdr exprs) (cons val vals))))))))
+
+(define (call-func sexpr env)
+  (let ((f (eval (car sexpr) env))
+        (args (map (lambda (s) (eval s env)) (cdr sexpr))))
+    (f args)))
+
+(define (lookup env sexpr)
+  (let ((name (string sexpr))
+        (defs (car env))
         (parent (cadr env)))
     (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
       (if d
         (cadr d)
         (if parent (lookup parent name) (error (string-append "undefined: " name)))))))
 
-(define (eval-verb sexpr env)
-  (let ((l (cadr sexpr)))
-    (cond ((null? l) (list "list" '()))
-          ((equal? (cadar l) "define") (define-func sexpr env))
-          ((equal? (cadar l) "lambda") (define-lambda sexpr env))
-          ((equal? (cadar l) "if") (eval-if sexpr env))
-          (else (apply-func (eval (car l) env) (map (lambda (s) (eval s env)) (cdr l)))))))
-
-(define (define-func sexpr env)
-  (let* ((clause (cadadr sexpr))
-         (names (map cadr (cadr clause)))
-         (funcname (car names))
-         (argnames (cdr names))
-         (body (cddadr sexpr)))
-    (define f (list
-      "function"
-      (lambda (args)
-        (let ((env (list (cons (list funcname f) (zip argnames args)) env)))
-          (let loop ((body body) (last #f))
-            (if (null? body)
-              last
-              (loop (cdr body) (eval (car body) env))))))))
-    (set-car! env (cons (list funcname f) (car env)))
-    f))
-
-(define (define-lambda sexpr env)
-  (let* ((clause (cadadr sexpr))
-         (names (map cadr (cadr clause)))
-         (argnames names)
-         (body (cddadr sexpr)))
-    (define f (list
-      "function"
-      (lambda (args)
-        (let ((env (list (zip argnames args) env)))
-          (let loop ((body body) (last #f))
-            (if (null? body)
-              last
-              (loop (cdr body) (eval (car body) env))))))))
-    f))
-
-(define (eval-if sexpr env)
-  (let* ((clauses (cadr sexpr))
-         (p (cadr clauses))
-         (t (caddr clauses))
-         (f (cadddr clauses)))
-    (let ((pv (eval p env)))
-      (if (> (cadr pv) 0)
-        (eval t env)
-        (eval f env)))))
-
-(define (apply-func f args)
-  ((cadr f) args))
-
 (define global
   (list
     (list
-      (list "+" (list "function" (lambda (args) (begin (list "number" (apply + (map cadr args)))))))
-      (list "<" (list "function" (lambda (args) (begin (list "number" (if (apply < (map cadr args)) 1 0))))))
-      (list "-" (list "function" (lambda (args) (begin (list "number" (apply - (map cadr args))))))))
+      (list "+" (curry apply +))
+      (list "<" (curry apply <))
+      (list "-" (curry apply -)))
     #f))
 
-(let loop ()
+;;; REPL
+
+(let repl ()
   (let ((sexpr (read)))
-    (if (eof-object? sexpr)
-      #t
-      (begin 
+    (if (eof? sexpr)
+      0
+      (let ()
         (pretty-print (eval sexpr global))
         (newline)
-        (loop)))))
+        (repl)))))
 
