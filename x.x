@@ -59,6 +59,10 @@
           (error "unexpected EOF reading list")
           (loop (cons val vals)))))))
 
+(define (read-boolean)
+  (read-c)
+  (equal? (read-c) "t"))
+
 (define (read-number)
   (string->number (read-matching string-number?)))
 
@@ -87,18 +91,20 @@
   (let ((c (peek-c)))
     (cond
       ((eof? c) c)
-      ((equal? c "(")        (read-list))
-      ((string-number? c)  (read-number))
-      ((equal? c "\"")       (read-string))
+      ((equal? c "(")     (read-list))
+      ((equal? c "#")     (read-boolean))
+      ((string-number? c) (read-number))
+      ((equal? c "\"")    (read-string))
       (#t                (read-symbol)))))
 
 ;;; EVAL
 
 (define (eval sexpr env)
-  (cond ((list? sexpr) (eval-verb sexpr env))
-        ((number? sexpr) sexpr)
-        ((string? sexpr) sexpr)
-        ((symbol? sexpr) (lookup env sexpr))
+  (cond ((list? sexpr)    (eval-verb sexpr env))
+        ((boolean? sexpr) sexpr)
+        ((number? sexpr)  sexpr)
+        ((string? sexpr)  sexpr)
+        ((symbol? sexpr)  (lookup env sexpr))
         (#t (error "unknown sexpr type" sexpr))))
 
 (define (eval-verb sexpr env)
