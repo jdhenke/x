@@ -48,12 +48,14 @@
     string->number
     symbol
     list?
+    null?
     number?
     symbol?
     boolean?
     string?
     pretty-print
     newline
+    string
     ))
 
 (define global
@@ -67,3 +69,4 @@
            native-funcs))
     #f))
 
+(set! global (list (list (list "global" global)) global))
