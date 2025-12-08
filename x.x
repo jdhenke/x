@@ -68,7 +68,7 @@
       (lambda (c) 
         (not
           (or
-            (eof-object? c)
+            (eof? c)
             (equal? c ")")
             (equal? c " ")
             (equal? c "\n")))))))
@@ -102,6 +102,8 @@
         ((equal? (car sexpr) (symbol "cond"))   (eval-cond sexpr env))
         ((equal? (car sexpr) (symbol "let"))    (eval-let sexpr env))
         ((equal? (car sexpr) (symbol "let*"))   (eval-let sexpr env))
+        ((equal? (car sexpr) (symbol "or"))     (eval-or sexpr env))
+        ((equal? (car sexpr) (symbol "and"))    (eval-and sexpr env))
         (#t                                     (call-func sexpr env))))
 
 (define (eval-define sexpr env)
@@ -182,6 +184,18 @@
                  (val (eval (cadar exprs) arg-env)))
             (arg-loop (cdr exprs) (cons val vals))))))))
 
+(define (eval-or sexpr env)
+  (let loop ((clauses (cdr sexpr)))
+    (cond ((null? clauses) #f)
+          ((eval (car clauses) env) #t)
+          (#t (loop (cdr clauses))))))
+
+(define (eval-and sexpr env)
+  (let loop ((clauses (cdr sexpr)))
+    (cond ((null? clauses) #t)
+          ((not (eval (car clauses) env)) #f)
+          (#t (loop (cdr clauses))))))
+
 (define (call-func sexpr env)
   (let ((f (eval (car sexpr) env))
         (args (map (lambda (s) (eval s env)) (cdr sexpr))))
@@ -194,19 +208,7 @@
     (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
       (if d
         (cadr d)
-        (if parent (lookup parent name) (error (string-append "undefined: [" name "]")))))))
-
-(define global
-  (list
-    (list
-      (list "+" (curry apply +))
-      (list "<" (curry apply <))
-      (list "-" (curry apply -))
-      (list "list" (curry apply list))
-      (list "cons" (curry apply cons))
-      (list "apply" (lambda (args) (apply (car args) (cdr args))))
-      (list "append" (curry apply append)))
-    #f))
+        (if parent (lookup parent name) (error "undefined" name))))))
 
 ;;; REPL
 

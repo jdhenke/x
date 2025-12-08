@@ -12,3 +12,8 @@
 (define add-five-and-six (curry + 5 6))
 
 (add-five-and-six 9 10)
+
+(or #f #t)
+(or #f #f #f)
+(and #f #f #f)
+(and #t #t #t)
