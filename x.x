@@ -109,12 +109,19 @@
     (define-func sexpr env)
     (define-var sexpr env)))
 
+
+(define (bind-func-args argnames args)
+  (if (and (> (length argnames) 1) (equal? (second (reverse argnames)) "."))
+    (cons (list (last argnames) (sublist args (- (length argnames) 2) (length args)))
+          (zip (sublist argnames 0 (- (length argnames) 2)) args))
+    (zip argnames args)))
+
 (define (define-func sexpr env)
   (let ((funcname (string (caadr sexpr)))
         (argnames (map string (cdadr sexpr)))
         (body (cddr sexpr)))
     (define f (lambda (args)
-      (let ((env (list (cons (list funcname f) (zip argnames args)) env)))
+      (let ((env (list (cons (list funcname f) (bind-func-args argnames args)) env)))
         (let loop ((body body) (last #f))
           (if (null? body)
             last
@@ -197,7 +204,8 @@
       (list "-" (curry apply -))
       (list "list" (curry apply list))
       (list "cons" (curry apply cons))
-      (list "apply" (lambda (args) (apply (car args) (cdr args)))))
+      (list "apply" (lambda (args) (apply (car args) (cdr args))))
+      (list "append" (curry apply append)))
     #f))
 
 ;;; REPL
