@@ -76,17 +76,28 @@
     zip
     ))
 
-(define runtime "x")
+(define runtime "s")
+(define (xlog v)
+  (display runtime)
+  (display "> ")
+  (pretty-print v)
+  (newline))
 
 (define e (interaction-environment))
 
 (define native-eval eval)
 (define (make-env runtime)
+  (define (xlog v)
+    (display runtime)
+    (display "> ")
+    (pretty-print v)
+    (newline))
   (list
       (append
         (list
-          (list "runtime" (string-append runtime "x"))
-          (list "make-env" make-env))
+          (list "runtime"   runtime)
+          (list "xlog"      xlog)
+          (list "make-env"  make-env))
         (map (lambda (s)
                (list (string s)
                      (native-eval s e)))

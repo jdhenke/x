@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -v
+
+cat test.x | ./scm
+read
+
+cat x.x test.x | ./scm
+read
+
+cat x.x x.x test.x | ./scm
+

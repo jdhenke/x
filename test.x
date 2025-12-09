@@ -1,7 +1,6 @@
 (define (curry f . largs)
   (lambda rargs (apply f (append largs rargs))))
 
-
 (define (memo f)
   (let ((m (list)))
     (lambda args
@@ -20,8 +19,7 @@
 (set! fib (memo fib))
 
 (let loop ((i 1))
-  (if (< i 10)
+  (if (< i 11)
     (let () 
-      (pretty-print (fib i))
-      (newline)
+      (xlog (fib i))
       (loop (+ i 1)))))

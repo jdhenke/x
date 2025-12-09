@@ -1,13 +1,5 @@
 ;;; READ
 
-(pretty-print runtime)
-
-(define (xlog v)
-  (display runtime)
-  (display "> ")
-  (pretty-print v)
-  (newline))
-
 (define (read-matching f)
   (apply string-append
     (let loop ((matched (list)))
@@ -236,7 +228,14 @@
 
 ;;; REPL
 
+(define runtime (string-append runtime "x"))
 (define global (make-env runtime))
+
+(define (xlog v)
+  (display runtime)
+  (display "> ")
+  (pretty-print v)
+  (newline))
 
 (let repl ()
   (let ((sexpr (read)))
