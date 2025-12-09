@@ -117,7 +117,6 @@
     (define-func sexpr env)
     (define-var sexpr env)))
 
-
 (define (bind-func-args argnames args)
   (if (and (> (length argnames) 1) (equal? (second (reverse argnames)) "."))
     (cons (list (last argnames) (sublist args (- (length argnames) 2) (length args)))

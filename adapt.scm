@@ -48,6 +48,7 @@
     find
     first
     length
+    last
     list
     list?
     map
@@ -67,6 +68,7 @@
     string-append
     string-number?
     string?
+    sublist
     symbol
     symbol?
     third
