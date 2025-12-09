@@ -27,42 +27,52 @@
     <
     =
     append
-    apply
-    car
-    cadr
-    caddr
-    cadddr
+    boolean?
+    caadr
     cadar
+    cadddr
+    caddr
+    cadr
+    car
     cdr
+    cdadr
     cons
     curry
     eof?
     equal?
+    error
+    find
+    first
     list
-    not
-    peek-c
-    read-c
-    reverse
-    string-append
-    string-number?
-    string->number
-    symbol
     list?
+    map
+    newline
+    not
     null?
     number?
-    symbol?
-    boolean?
-    string?
+    peek-c
     pretty-print
-    newline
+    read-c
+    reverse
+    second
+    set-car!
+    set-cdr!
     string
+    string->number
+    string-append
+    string-number?
+    string?
+    symbol
+    symbol?
+    third
+    apply
     ))
 
 (define global
   (list
     (append
       (list
-        (list "apply" (lambda (args) (apply (car args) (cdr args)))))
+        (list "runtime" "x"))
       (map (lambda (s)
              (list (string s)
                    (curry apply (eval s (interaction-environment)))))
@@ -70,3 +80,6 @@
     #f))
 
 (set! global (list (list (list "global" global)) global))
+
+(define runtime "scheme")
+

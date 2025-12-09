@@ -1,5 +1,8 @@
 ;;; READ
 
+(define (xlog v)
+  (if (equal? runtime "x") (let () (pretty-print v) (newline))))
+
 (define (read-matching f)
   (apply string-append
     (let loop ((matched (list)))
@@ -25,15 +28,15 @@
 
 (define (read-list)
   (read-c)
-  (read-whitespace)
   (let loop ((vals (list)))
+    (read-whitespace)
     (if (equal? (peek-c) ")")
       (let ()
         (read-c)
         (reverse vals))
       (let ((val (read)))
         (if (eof? val)
-          (error "unexpected EOF reading list")
+          (error "unexpected EOF reading list" (reverse vals))
           (loop (cons val vals)))))))
 
 (define (read-boolean)
@@ -46,20 +49,19 @@
 (define (read-string)
   (read-c)
   (let loop ((cs (list)))
-    (let ((c (peek-c)))
-      (if (or (eof? c) (equal? c "\""))
-        (let () (read-c) (apply string-append (reverse cs)))
+    (let ((c (read-c)))
+      (if (eof? c) (error "unexpected EOF reading string" (apply string-append (reverse cs))))
+      (if (or (equal? c "\""))
+        (let () (apply string-append (reverse cs)))
         (let ()
           (if (equal? c "\\")
               (let ()
-                (read-c)
-                (set! c (let ((ec (peek-c)))
+                (set! c (let ((ec (read-c)))
                   (cond ((equal? ec "\"") "\"")
-                        ((equal? ec "\\") "\\")
                         ((equal? ec "n") "\n")
                         ((equal? ec "\\") "\\")
-                        (#t (error "unrecognized escape" ec)))))))
-          (read-c)
+                        (#t (error "unrecognized escape" ec))))))
+              #f)
           (loop (cons c cs)))))))
 
 (define (read-symbol)
@@ -82,7 +84,7 @@
       ((equal? c "#")     (read-boolean))
       ((string-number? c) (read-number))
       ((equal? c "\"")    (read-string))
-      (#t                (read-symbol)))))
+      (#t                 (read-symbol)))))
 
 ;;; EVAL
 
@@ -96,14 +98,16 @@
 
 (define (eval-verb sexpr env)
   (cond ((null? sexpr) sexpr)
-        ((equal? (car sexpr) (symbol "define")) (eval-define sexpr env))
-        ((equal? (car sexpr) (symbol "lambda")) (define-lambda sexpr env))
-        ((equal? (car sexpr) (symbol "if"))     (eval-if sexpr env))
-        ((equal? (car sexpr) (symbol "cond"))   (eval-cond sexpr env))
-        ((equal? (car sexpr) (symbol "let"))    (eval-let sexpr env))
-        ((equal? (car sexpr) (symbol "let*"))   (eval-let sexpr env))
-        ((equal? (car sexpr) (symbol "or"))     (eval-or sexpr env))
-        ((equal? (car sexpr) (symbol "and"))    (eval-and sexpr env))
+        ((equal? (car sexpr) (symbol "define"))   (eval-define sexpr env))
+        ((equal? (car sexpr) (symbol "lambda"))   (define-lambda sexpr env))
+        ((equal? (car sexpr) (symbol "if"))       (eval-if sexpr env))
+        ((equal? (car sexpr) (symbol "cond"))     (eval-cond sexpr env))
+        ((equal? (car sexpr) (symbol "let"))      (eval-let sexpr env))
+        ((equal? (car sexpr) (symbol "let*"))     (eval-let sexpr env))
+        ((equal? (car sexpr) (symbol "or"))       (eval-or sexpr env))
+        ((equal? (car sexpr) (symbol "and"))      (eval-and sexpr env))
+        ((equal? (car sexpr) (symbol "set!"))     (eval-set! sexpr env))
+        ((equal? (car sexpr) (symbol "apply"))    (apply-func sexpr env))
         (#t                                     (call-func sexpr env))))
 
 (define (eval-define sexpr env)
@@ -119,6 +123,7 @@
     (zip argnames args)))
 
 (define (define-func sexpr env)
+  (xlog sexpr)
   (let ((funcname (string (caadr sexpr)))
         (argnames (map string (cdadr sexpr)))
         (body (cddr sexpr)))
@@ -151,7 +156,7 @@
 (define (eval-if sexpr env)
   (let* ((p (cadr sexpr))
          (t (caddr sexpr))
-         (f (cadddr sexpr))
+         (f (if (> (length sexpr) 3) (cadddr sexpr) #f))
          (pv (eval p env)))
     (eval (if pv t f) env)))
 
@@ -196,6 +201,22 @@
           ((not (eval (car clauses) env)) #f)
           (#t (loop (cdr clauses))))))
 
+(define (eval-set! sepxr env)
+  (let ((name (string (cadr sexpr)))
+        (val (eval (caddr sexpr) env)))
+    (let loop ((env env))
+      (if (not env)
+        (error "undefined" name))
+      (let ((p (find (lambda (p) (equal? (car p) name)) env)))
+       (if p
+         (set-cdr! p (list val))
+         (loop (cadr env)))))))
+
+(define (apply-func sexpr env)
+  (let ((f    (eval (cadr sexpr) env))
+        (args (eval (caddr sexpr) env)))
+    (f args)))
+
 (define (call-func sexpr env)
   (let ((f (eval (car sexpr) env))
         (args (map (lambda (s) (eval s env)) (cdr sexpr))))
@@ -215,7 +236,7 @@
 (let repl ()
   (let ((sexpr (read)))
     (if (eof? sexpr)
-      0
+      "Goodbye!"
       (let ()
         (pretty-print sexpr)
         (newline)
