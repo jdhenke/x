@@ -25,10 +25,12 @@
     +
     -
     <
+    >
     =
     append
     boolean?
     caadr
+    caar
     cadar
     cadddr
     caddr
@@ -36,6 +38,8 @@
     car
     cdr
     cdadr
+    cddr
+    cdddr
     cons
     curry
     eof?
@@ -43,6 +47,7 @@
     error
     find
     first
+    length
     list
     list?
     map
@@ -65,7 +70,7 @@
     symbol
     symbol?
     third
-    apply
+    zip
     ))
 
 (define global
@@ -75,11 +80,11 @@
         (list "runtime" "x"))
       (map (lambda (s)
              (list (string s)
-                   (curry apply (eval s (interaction-environment)))))
+                   (eval s (interaction-environment))))
            native-funcs))
     #f))
 
 (set! global (list (list (list "global" global)) global))
 
-(define runtime "scheme")
+(define runtime "")
 
