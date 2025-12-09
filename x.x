@@ -1,9 +1,12 @@
 ;;; READ
 
-(define runtime (string-append runtime "x"))
+(pretty-print runtime)
 
 (define (xlog v)
-  (if (equal? runtime "xx") (let () (pretty-print v) (newline))))
+  (display runtime)
+  (display "> ")
+  (pretty-print v)
+  (newline))
 
 (define (read-matching f)
   (apply string-append
@@ -232,6 +235,8 @@
         (if parent (lookup parent name) (error "undefined" name))))))
 
 ;;; REPL
+
+(define global (make-env runtime))
 
 (let repl ()
   (let ((sexpr (read)))

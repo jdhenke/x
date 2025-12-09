@@ -42,6 +42,7 @@
     cdddr
     cons
     curry
+    display
     eof?
     equal?
     error
@@ -75,18 +76,21 @@
     zip
     ))
 
-(define global
+(define runtime "x")
+
+(define e (interaction-environment))
+
+(define native-eval eval)
+(define (make-env runtime)
   (list
-    (append
-      (list
-        (list "runtime" "x"))
-      (map (lambda (s)
-             (list (string s)
-                   (eval s (interaction-environment))))
-           native-funcs))
-    #f))
+      (append
+        (list
+          (list "runtime" (string-append runtime "x"))
+          (list "make-env" make-env))
+        (map (lambda (s)
+               (list (string s)
+                     (native-eval s e)))
+             native-funcs))
+      #f))
 
-(set! global (list (list (list "global" global)) global))
-
-(define runtime "")
 
