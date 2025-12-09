@@ -1,4 +1,4 @@
-;;; REAtring
+;;; READ
 
 (define runtime (string-append runtime "x"))
 
@@ -128,7 +128,7 @@
         (argnames (map string (cdadr sexpr)))
         (body (cddr sexpr)))
     (define f (lambda args
-      (let ((env (list (cons (list funcname f) (bind-func-args argnames args)) env)))
+      (let ((env (list (bind-func-args argnames args) env)))
         (let loop ((body body) (last #f))
           (if (null? body)
             last
