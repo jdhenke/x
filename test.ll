@@ -1,10 +1,12 @@
 %Val = type {i8, i8*}
 
 declare i32 @printf(i8*, ...)
+declare i8* @malloc(i64)
 
 @type_str = unnamed_addr constant [10 x i8] c"Type: %d\0A\00"
 @bool_str = unnamed_addr constant [4 x i8] c"%d\0A\00"
 @int_str = unnamed_addr constant [4 x i8] c"%d\0A\00"
+@str_str = unnamed_addr constant [4 x i8] c"%s\0A\00"
 
 define i32 @main() {
   ; create and print all types
@@ -32,6 +34,22 @@ define i32 @main() {
   call void @print(%Val* %iv)
 
   ; string
+  %sv = alloca %Val
+  %svt = getelementptr inbounds %Val, %Val* %sv, i32 0, i32 0
+  store i8 3, i8* %svt
+  %svdp = getelementptr inbounds %Val, %Val* %sv, i32 0, i32 1
+  %ptr = call i8* @malloc(i64 4)
+  %p0 = getelementptr i8, i8* %ptr, i64 0
+  %p1 = getelementptr i8, i8* %ptr, i64 1
+  %p2 = getelementptr i8, i8* %ptr, i64 2
+  %p3 = getelementptr i8, i8* %ptr, i64 3
+  store i8 74, i8* %p0
+  store i8 111, i8* %p1
+  store i8 101, i8* %p2
+  store i8 0, i8* %p3
+  store i8* %ptr, i8** %svdp
+  call void @print(%Val* %sv)
+
   ; symbol
   ; list
   ; function
@@ -53,6 +71,10 @@ check2:
   br i1 %cmp2, label %case_int, label %check3
 
 check3:
+  %cmp3 = icmp eq i8 3, %vtv
+  br i1 %cmp3, label %case_str, label %check4
+
+check4:
   ret void
   
 ; boolean
@@ -73,6 +95,13 @@ case_int:
   %id = load i64, i64* %ipc
   %is = getelementptr inbounds [4 x i8], [4 x i8]* @int_str, i64 0, i64 0
   call i32 (i8*, ...) @printf(i8* %is, i64 %id)
+  ret void
+
+case_str:
+  %spp = getelementptr inbounds %Val, %Val* %v, i32 0, i32 1
+  %sp = load i8*, i8** %spp
+  %ss = getelementptr inbounds [4 x i8], [4 x i8]* @str_str, i64 0, i64 0
+  call i32 (i8*, ...) @printf(i8* %ss, i8* %sp)
   ret void
 
 ; string
