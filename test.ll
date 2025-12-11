@@ -1,5 +1,6 @@
 %Val = type {i8, i8*}
 %List = type {%Val**, i64}
+%Func = type {i64(i64)*, i64} ; not quite right
 
 declare i32 @printf(i8*, ...)
 declare i8* @malloc(i64)
@@ -12,6 +13,7 @@ declare i8* @malloc(i64)
 @lopen_str =  unnamed_addr constant [2 x i8] c"(\00"
 @lclose_str = unnamed_addr constant [3 x i8] c")\0A\00"
 @lspace_str = unnamed_addr constant [2 x i8] c" \00"
+@func_str = unnamed_addr constant [8 x i8] c"%x(%d)\0A\00"
 
 
 define i32 @main() {
@@ -100,6 +102,21 @@ define i32 @main() {
   call void @print(%Val* %lv)
 
   ; function
+  %fv = alloca %Val
+  %fvtp = getelementptr inbounds %Val, %Val* %fv, i32 0, i32 0
+  store i8 6, i8* %fvtp
+  ; create function
+  %fm = call i8* @malloc(i64 128) ; size of func header
+  %fc = bitcast i8* %fm to %Func*
+  %fpp = getelementptr inbounds %Func, %Func* %fc, i32 0, i32 0
+  store i64(i64)* @add5, i64(i64)** %fpp
+  %fap = getelementptr inbounds %Func, %Func* %fc, i32 0, i32 1
+  store i64 10, i64* %fap
+  %fvdp = getelementptr inbounds %Val, %Val* %fv, i32 0, i32 1
+  %fvdpc = bitcast i8* %fvdp to %Func**
+  store %Func* %fc, %Func** %fvdpc
+  call void @print(%Val* %fv)
+
   ret i32 42
 }
 
@@ -109,6 +126,8 @@ define void @print(%Val* %v) {
   %vtp = getelementptr inbounds %Val, %Val* %v, i32 0, i32 0
   %vtv = load i8, i8* %vtp
   ;call i32 (i8*, ...) @printf(i8* %st, i8 %vtv)
+
+  %is = getelementptr inbounds [4 x i8], [4 x i8]* @int_str, i64 0, i64 0
 
   %cmp1 = icmp eq i8 1, %vtv
   br i1 %cmp1, label %case_bool, label %check2
@@ -130,6 +149,10 @@ check5:
   br i1 %cmp5, label %case_list, label %check6
 
 check6:
+  %cmp6 = icmp eq i8 6, %vtv
+  br i1 %cmp6, label %case_func, label %check7
+
+check7:
   ret void
   
 ; boolean
@@ -148,7 +171,6 @@ case_int:
   %ip = getelementptr inbounds %Val, %Val* %v, i32 0, i32 1
   %ipc = bitcast i8* %ip to i64*
   %id = load i64, i64* %ipc
-  %is = getelementptr inbounds [4 x i8], [4 x i8]* @int_str, i64 0, i64 0
   call i32 (i8*, ...) @printf(i8* %is, i64 %id)
   ret void
 
@@ -181,6 +203,21 @@ case_list:
   ret void
   
 ; function
+case_func:
+  %frp = getelementptr inbounds %Val, %Val* %v, i32 0, i32 1
+  %fpp = bitcast i8* %frp to %Func**
+  %fp = load %Func*, %Func** %fpp
+  %callp = getelementptr inbounds %Func, %Func* %fp, i32 0, i32 0
+  %call = load i64(i64)*, i64(i64)** %callp
+  %argp = getelementptr inbounds %Func, %Func* %fp, i32 0, i32 1
+  %arg = load i64, i64* %argp
+  %ans = call i64 %call(i64 %arg)
+  %fs = getelementptr inbounds [8 x i8], [8 x i8]* @func_str, i64 0, i64 0
+  %fptr = bitcast i64(i64)* %call to ptr
+  call i32 (i8*, ...) @printf(i8* %fs, ptr %fptr, i64 %arg)
+  call i32 (i8*, ...) @printf(i8* %is, i64 %ans)
+  
+  ret void
 }
 
 define void @print_list_vals(%List* %l, i64 %i) {
