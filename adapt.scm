@@ -28,6 +28,7 @@
     >
     =
     append
+    apply
     boolean?
     caadr
     caar

@@ -1,0 +1,52 @@
+- native functions
+  - syscalls
+    - open
+    - read
+    - write
+    - exec
+    - args
+    - env
+  - C funcs
+    - printf
+    - fprintf
+  - data structures funcs
+    - equal?
+    - substring
+    - +-*/<><= >=
+    - (linked) list, cons, cdr, length, list-ref, null?
+    - (array) vector, ???
+  - pure logic in x
+    - map
+    - curry
+    - compose
+    - ...etc...
+- commands
+  - 🟡 x interpreter ; bootstrapped with scheme! successfully interprets itself. uses ~50 scheme funcs.
+  - 🔴 x compiler ; only have test.ll files so far, but decent idea of how to get into it.
+  - 🟠 x aoc solutions; have scheme solutions, not x ones.
+
+----
+
+- define top level env with %Val* funcs for native functions e.g. +
+
+(define (eval sexpr env)
+  (cond ((list? sexpr)    (eval-verb sexpr env))  -> see below
+        ((boolean? sexpr) sexpr)                  -> %e_x = malloc_GC bool %Val*
+        ((number? sexpr)  sexpr)                  -> %e_x = malloc_GC bool %Val*
+        ((string? sexpr)  sexpr)                  -> %e_x = malloc_GC bool %Val*
+        ((symbol? sexpr)  (lookup env sexpr))     -> %e_x = some %Val* %var unpacked from env or args
+        (#t (error "unknown sexpr type" sexpr))))
+
+(define (eval-verb sexpr env)
+  (cond ((null? sexpr) sexpr)
+        ((equal? (car sexpr) (symbol "define"))  (eval-define sexpr env))    -> %val = malloc_GC %Val*
+        ((equal? (car sexpr) (symbol "lambda"))  (define-lambda sexpr env))  -> define lamba_x, create %Val* func
+        ((equal? (car sexpr) (symbol "if"))      (eval-if sexpr env))        -> br
+        ((equal? (car sexpr) (symbol "cond"))    (eval-cond sexpr env))      -> br
+        ((equal? (car sexpr) (symbol "let"))     (eval-let sexpr env))       -> define let_x, create %Val* func
+        ((equal? (car sexpr) (symbol "let*"))    (eval-let sexpr env))       -> define let_x, create %Val* func
+        ((equal? (car sexpr) (symbol "or"))      (eval-or sexpr env))        -> br
+        ((equal? (car sexpr) (symbol "and"))     (eval-and sexpr env))       -> br
+        ((equal? (car sexpr) (symbol "set!"))    (eval-set! sexpr env))      -> load %Val into %Val* for %val
+        (#t                                      (call-func sexpr env))))    -> call %func
+
