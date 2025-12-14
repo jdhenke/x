@@ -14,27 +14,34 @@ declare i32 @printf(i8*, ...)
 declare i8* @GC_malloc(i64)
 
 define %Env @make_global_env() {
-  ; create function for call_list
-  %f1 = insertvalue %Func undef, %Val(%Env, %Args)* @call_list, 0
-  %fe = insertvalue %Env undef, %Val** null, 0
-  %f2 = insertvalue %Func %f1, %Env %fe, 1
-
-  ; create val for function
-  %vf = call %Val @make_func_val(%Func %f2)
-  %vfp = call %Val* @val_ptr(%Val %vf)
-
   ; create env with val in it
-  %valsp = call i8* @GC_malloc(i64 64) ; x1 element
+  %size = mul i64 64, 2
+  %valsp = call i8* @GC_malloc(i64 %size) ; x2 element
   %vals = bitcast i8* %valsp to %Val**
-  %v0 = getelementptr %Val*, %Val** %vals, i64 0
-  store %Val* %vfp, %Val** %v0
 
+  ; be sure to update size accordingly
+  call void @store_native_func(%Val** %vals, %Val(%Env, %Args)* @call_list, i64 0)
+  call void @store_native_func(%Val** %vals, %Val(%Env, %Args)* @call_plus, i64 1)
+
+  ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val** %vals, 0
   %e2 = insertvalue %Env %e1, %Env* null, 1
 
   ; ret env
   ret %Env %e2
 
+}
+
+
+define void @store_native_func(%Val** %vals, %Val(%Env, %Args)* %f, i64 %i) {
+  %nulle = insertvalue %Env undef, %Val** null, 0
+  %f1 = insertvalue %Func undef, %Val(%Env, %Args)* %f, 0
+  %f2 = insertvalue %Func %f1, %Env %nulle, 1
+  %fv = call %Val @make_func_val(%Func %f2)
+  %fvp = call %Val* @val_ptr(%Val %fv)
+  %v0 = getelementptr %Val*, %Val** %vals, i64 %i
+  store %Val* %fvp, %Val** %v0
+  ret void
 }
 
 define %Val @lookup(%Env %env, i64 %depth, i64 %offset) {
@@ -71,6 +78,7 @@ define %Val* @val_ptr(%Val %v) {
   ret %Val* %vp
 }
 
+;;; FIXME
 define %Val @call_list(%Env %env, %Args %args) {
   ; malloc a List
   %lrp = call i8* @GC_malloc(i64 128)
@@ -84,6 +92,12 @@ define %Val @call_list(%Env %env, %Args %args) {
   %1 = insertvalue %Val undef, i8 5, 0 ; type list
   %2 = insertvalue %Val %1, i8* %lp, 1 ; store pointer to malloced List as value
   ret %Val %2
+}
+
+;;; FIXME
+define %Val @call_plus(%Env %env, %Args %args) {
+  %out = call %Val @make_int_val(i64 33)
+  ret %Val %out
 }
 
 define void @print(%Val %v) {

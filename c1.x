@@ -15,6 +15,8 @@
 ; symbols
 list
 list
++
++
 
 ;; verbs
 ;(list #t 42 "joe")

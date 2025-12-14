@@ -211,14 +211,14 @@
 ;        (args (map (lambda (s) (eval s env)) (cdr sexpr))))
 ;    (apply f args)))
 
-(define (lookup env sexpr)
-  (let ((name (string sexpr))
-        (defs (car env))
-        (parent (cadr env)))
-    (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
-      (if d
-        (cadr d)
-        (if parent (lookup parent name) (error "undefined" name))))))
+;(define (lookup env sexpr)
+;  (let ((name (string sexpr))
+;        (defs (car env))
+;        (parent (cadr env)))
+;    (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
+;      (if d
+;        (cadr d)
+;        (if parent (lookup parent name) (error "undefined" name))))))
 
 (define next-e
   (let ((x 0))
@@ -233,6 +233,18 @@
       x)))
 
 (define constants '())
+
+(define (lookup env sym)
+  (let loop ((env env)
+             (depth 0))
+    (if (not env)
+      (error "undefined symbol" sym)
+      (let* ((vals (car env))
+             (def (assoc sym vals)))
+        (if def
+          (list depth (cadr def))
+          (loop (cadr env) (+ 1 depth)))))))
+    
 
 (define (emit sexpr env)
   (let ((e (string-append "%e" (number->string (next-e)))))
@@ -276,8 +288,9 @@
              (newline)
              e))
           ((symbol? sexpr)
-           (let ((depth 0)
-                 (offset 0))
+           (let* ((l (lookup env sexpr))
+                  (depth (car l))
+                  (offset (cadr l)))
              (display (string-append "; lookup symbol: " (string sexpr)))
              (newline)
              (display (string-append "  "
@@ -293,8 +306,12 @@
 
 ;;; REPL
 
-(define runtime (string-append runtime "x"))
-(define global (make-env runtime))
+; must match xc.ll
+(define global (list
+                 (list
+                   (list (symbol "list") 0)
+                   (list (symbol "+") 1))
+                  #f))
 
 (display "define i32 @main() {")
 (newline)
