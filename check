@@ -2,4 +2,7 @@
 
 set -ex -o pipefail
 
-cat x.x | ./x x.x
+#cat x.x | ./x x.x
+cat xc.ll > /tmp/out.ll && ./scm xc.x < c1.x >> /tmp/out.ll
+clang -Wno-override-module /tmp/out.ll -o c1 && ./c1
+
