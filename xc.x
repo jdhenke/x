@@ -275,6 +275,20 @@
              (display (string-append "  " e " = call %Val @make_str_val(i8* " sv ")"))
              (newline)
              e))
+          ((symbol? sexpr)
+           (let ((depth 0)
+                 (offset 0))
+             (display (string-append "; lookup symbol: " (string sexpr)))
+             (newline)
+             (display (string-append "  "
+                                     e
+                                     " = call %Val @lookup(%Env %env, i64 "
+                                     (number->string depth)
+                                     ", i64 "
+                                     (number->string offset)
+                                     ")"))
+             (newline)
+             e))
         (#t #f))))
 
 ;;; REPL
@@ -283,6 +297,8 @@
 (define global (make-env runtime))
 
 (display "define i32 @main() {")
+(newline)
+(display "  %env = call %Env @make_global_env()")
 (newline)
 
 (let repl ()
