@@ -296,9 +296,10 @@
           #f)
         (repl)))))
 
-(display "ret i32 0")
+(display "  ret i32 0")
 (newline)
 (display "}")
+(newline)
 (newline)
 
 (for-each (lambda (l) (display l) (newline)) constants)
