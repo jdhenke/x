@@ -302,6 +302,68 @@
                                      ")"))
              (newline)
              e))
+          ((list? sexpr)
+           (let ()
+             ; recursively emit each part of the operand
+             (define fe (emit (car sexpr) env))
+             (define args (map (lambda (arg) (emit arg env)) (cdr sexpr)))
+             ; create args
+             (define i (next-e))
+             (display (string-append
+                        "  %"
+                        (number->string i)
+                        " = call i8* @GC_malloc(i64 "
+                        (number->string (* 128 (length args)))
+                        ")"))
+             (newline)
+             (define l (next-e))
+             (display (string-append 
+                        "  %"
+                        (number->string l)
+                        " = bitcast i8* %"
+                        (number->string i)
+                        " to %Val*"))
+             (newline)
+             (define c 0)
+             (for-each
+               (lambda (arg)
+                 (define s (string-append "%" (number->string (next-e))))
+                 (display (string-append "  "
+                                         s
+                                         " = getelementptr %Val, %Val* %"
+                                         (number->string l)
+                                         ", i64 "
+                                         (number->string c)))
+                 (newline)
+                 (display (string-append "  store %Val " arg ", %Val* " s))
+                 (newline)
+                 (set! c (+ c 1)))
+               args)
+             (define a1 (string-append "%a" (number->string (next-e))))
+             (display (string-append "  "
+                                     a1
+                                     "= insertvalue %Args undef, i64 "
+                                     (number->string (length args))
+                                     ", 1"))
+             (newline)
+             (define a2 (string-append "%a" (number->string (next-e))))
+             (display (string-append "  "
+                                     a2
+                                     " = insertvalue %Args "
+                                     a1
+                                     ", %Val* %"
+                                     (number->string l)
+                                     ", 0"))
+             (newline)
+             (display (string-append "  "
+                                     e
+                                     " = call %Val @call_func_val(%Val " 
+                                     fe
+                                     ", %Args "
+                                     a2
+                                     ")"))
+             (newline)
+             e))
         (#t #f))))
 
 ;;; REPL

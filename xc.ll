@@ -32,7 +32,6 @@ define %Env @make_global_env() {
 
 }
 
-
 define void @store_native_func(%Val** %vals, %Val(%Env, %Args)* %f, i64 %i) {
   %nulle = insertvalue %Env undef, %Val** null, 0
   %f1 = insertvalue %Func undef, %Val(%Env, %Args)* %f, 0
@@ -94,11 +93,29 @@ define %Val @call_list(%Env %env, %Args %args) {
   ret %Val %2
 }
 
-;;; FIXME
 define %Val @call_plus(%Env %env, %Args %args) {
-  %out = call %Val @make_int_val(i64 33)
+entry:
+  %vs = extractvalue %Args %args, 0
+  %n = extractvalue %Args %args, 1
+  br label %header
+header:
+  %sum = phi i64 [ 0, %entry], [ %bump, %body]
+  %i = phi i64 [0, %entry], [%ni, %body]
+  %cmp = icmp slt i64 %i, %n 
+  br i1 %cmp, label %body, label %exit
+body:
+  %avp = getelementptr %Val, %Val* %vs, i64 %i
+  %av = load %Val, %Val* %avp
+  %d = extractvalue %Val %av, 1
+  %x = ptrtoint i8* %d to i64
+  %bump = add i64 %sum, %x
+  %ni = add i64 %i, 1
+  br label %header
+exit:
+  %out = call %Val @make_int_val(i64 %sum)
   ret %Val %out
 }
+
 
 define void @print(%Val %v) {
   %is = getelementptr inbounds [4 x i8], [4 x i8]* @int_str, i64 0, i64 0
@@ -162,3 +179,13 @@ define %Val @make_str_val(i8* %s) {
   ret %Val %2
 }
 
+
+define %Val @call_func_val(%Val %v, %Args %args) {
+  %frp = extractvalue %Val %v, 1
+  %fp = bitcast i8* %frp to %Func*
+  %f = load %Func, %Func* %fp
+  %cf = extractvalue %Func %f, 0
+  %e = extractvalue %Func %f, 1
+  %out = call %Val %cf (%Env %e, %Args %args)
+  ret %Val %out
+}
