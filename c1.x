@@ -26,7 +26,7 @@ list
 (+ 4 5 6)
 (+ (+ 1 2) ( + 2 3) (+ 4 5 6))
 
-;(list #t 42 "joe")
+(list #t 42 "joe")
 
 ;(define a 1)
 ;(define b a)

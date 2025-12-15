@@ -261,7 +261,7 @@
           ((string? sexpr)
            (let* ((s (next-s))
                    (sc (string-append "@.str." (number->string s)))
-                   (sv (string-append "%" (number->string s)))
+                   (sv (string-append "%s" (number->string s)))
                    (dims (string-append "["
                                        (number->string (+ 1 (string-length sexpr)))
                                        " x i8]")))

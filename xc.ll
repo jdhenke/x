@@ -79,18 +79,37 @@ define %Val* @val_ptr(%Val %v) {
 
 ;;; FIXME
 define %Val @call_list(%Env %env, %Args %args) {
-  ; malloc a List
-  %lrp = call i8* @GC_malloc(i64 128)
-  %lp = bitcast i8* %lrp to %List*
-  %carp = getelementptr %List, %List* %lp, i32 0, i32 0
-  %foo = call %Val @make_int_val(i64 64)
-  store %Val %foo, %Val* %carp
-  %cdrp = getelementptr %List, %List* %lp, i32 0, i32 1
-  store %List* null, %List** %cdrp
+  %vs = extractvalue %Args %args, 0
+  %size = extractvalue %Args %args, 1
+  %n = sub i64 %size, 1
+  %l = call %List @make_list(%Val* %vs, %List* null, i64 %n)
+  %v = call %Val @make_list_val(%List %l)
+  ret %Val %v
+}
 
-  %1 = insertvalue %Val undef, i8 5, 0 ; type list
-  %2 = insertvalue %Val %1, i8* %lp, 1 ; store pointer to malloced List as value
-  ret %Val %2
+define %List @make_list(%Val* %vs, %List %l, i64 %i) {
+  %cmp = icmp sge i64 %i, 0
+  br i1 %cmp, label %body, label %end
+
+body:
+  %vp = getelementptr %Val, %Val* %vs, i64 %i
+  %v = load %Val, %Val* %vp
+  %nl = call %List @cons(%Val %v, %List %l)
+  %ni = sub i64 %i, 1
+  %out = call %List @make_list(%Val* %vs, %List %nl, i64 %ni)
+  ret %List %out
+
+end:
+  ret %List %l
+}
+
+define %List @cons(%Val %v, %List %l) {
+  %1 = insertvalue %List undef, %Val %v, 0
+  %lp = call i8* @GC_malloc(i64 192)
+  %lpc = bitcast i8* %lp to %List*
+  store %List %l, %List* %lpc
+  %2 = insertvalue %List %1, %List* %lpc, 1
+  ret %List %2
 }
 
 define %Val @call_plus(%Env %env, %Args %args) {
@@ -131,6 +150,7 @@ define void @print(%Val %v) {
     i8 1, label %is_bool
     i8 2, label %is_int
     i8 3, label %is_str
+    i8 4, label %is_list
     i8 6, label %is_func
   ]
   ; symb
@@ -148,6 +168,10 @@ is_int:
 
 is_str:
   call i32 (i8*, ...) @printf(i8* %ss, i8* %x)
+  ret void
+
+is_list:
+  ;; TODO: print list
   ret void
 
 is_func:
@@ -176,6 +200,15 @@ define %Val @make_int_val(i64 %x) {
 define %Val @make_str_val(i8* %s) {
   %1 = insertvalue %Val undef, i8 3, 0
   %2 = insertvalue %Val %1, i8* %s, 1
+  ret %Val %2
+}
+
+define %Val @make_list_val(%List %l) {
+  %1 = insertvalue %Val undef, i8 4, 0
+  %lp = call i8* @GC_malloc(i64 192)
+  %lpc = bitcast i8* %lp to %List*
+  store %List %l, %List* %lpc
+  %2 = insertvalue %Val %1, i8* %lp, 1
   ret %Val %2
 }
 
