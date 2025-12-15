@@ -5,10 +5,16 @@
 %Func = type { %Val(%Env, %Args)*, %Env } ; ptr, closure
 %List = type { %Val, %List* } ; car, cdr
 
-@int_str = unnamed_addr constant [4 x i8] c"%d\0A\00"
-@str_str = unnamed_addr constant [6 x i8] c"\22%s\22\0A\00"
-@unk_str = unnamed_addr constant [5 x i8] c"unk\0A\00"
-@func_str = unnamed_addr constant [7 x i8] c"λ %x\0A\00"
+@nl_str = unnamed_addr constant [2 x i8] c"\0A\00"
+
+@int_str = unnamed_addr constant [3 x i8] c"%d\00"
+@str_str = unnamed_addr constant [5 x i8] c"\22%s\22\00"
+@unk_str = unnamed_addr constant [10 x i8] c"unk %d %x\00"
+@func_str = unnamed_addr constant [6 x i8] c"λ %x\00"
+
+@lp_str = unnamed_addr constant [2 x i8] c"(\00"
+@rp_str = unnamed_addr constant [2 x i8] c")\00"
+@sp_str = unnamed_addr constant [2 x i8] c" \00"
 
 declare i32 @printf(i8*, ...)
 declare i8* @GC_malloc(i64)
@@ -38,8 +44,8 @@ define void @store_native_func(%Val** %vals, %Val(%Env, %Args)* %f, i64 %i) {
   %f2 = insertvalue %Func %f1, %Env %nulle, 1
   %fv = call %Val @make_func_val(%Func %f2)
   %fvp = call %Val* @val_ptr(%Val %fv)
-  %v0 = getelementptr %Val*, %Val** %vals, i64 %i
-  store %Val* %fvp, %Val** %v0
+  %vi = getelementptr %Val*, %Val** %vals, i64 %i
+  store %Val* %fvp, %Val** %vi
   ret void
 }
 
@@ -63,7 +69,8 @@ next:
 
 define %Val @make_func_val(%Func %f) {
   %1 = insertvalue %Val undef, i8 6, 0
-  %p = call i8* @GC_malloc(i64 192)
+  %size = ptrtoint %Func* getelementptr (%Func, %Func* null, i64 1) to i64
+  %p = call i8* @GC_malloc(i64 %size)
   %fp = bitcast i8* %p to %Func*
   store %Func %f, %Func* %fp
   %2 = insertvalue %Val %1, i8* %p, 1
@@ -71,45 +78,46 @@ define %Val @make_func_val(%Func %f) {
 }
 
 define %Val* @val_ptr(%Val %v) {
-  %p = call i8* @GC_malloc(i64 128)
+  %size = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
+  %p = call i8* @GC_malloc(i64 %size)
   %vp = bitcast i8* %p to %Val*
   store %Val %v, %Val* %vp
   ret %Val* %vp
 }
 
-;;; FIXME
 define %Val @call_list(%Env %env, %Args %args) {
   %vs = extractvalue %Args %args, 0
   %size = extractvalue %Args %args, 1
   %n = sub i64 %size, 1
-  %l = call %List @make_list(%Val* %vs, %List* null, i64 %n)
-  %v = call %Val @make_list_val(%List %l)
+  %l = call %List* @make_list(%Val* %vs, %List* null, i64 %n)
+  %v = call %Val @make_list_val(%List* %l)
   ret %Val %v
 }
 
-define %List @make_list(%Val* %vs, %List %l, i64 %i) {
+define %List* @make_list(%Val* %vs, %List* %lp, i64 %i) {
   %cmp = icmp sge i64 %i, 0
   br i1 %cmp, label %body, label %end
 
 body:
   %vp = getelementptr %Val, %Val* %vs, i64 %i
   %v = load %Val, %Val* %vp
-  %nl = call %List @cons(%Val %v, %List %l)
+  %nl = call %List* @cons(%Val %v, %List* %lp)
   %ni = sub i64 %i, 1
-  %out = call %List @make_list(%Val* %vs, %List %nl, i64 %ni)
-  ret %List %out
+  %out = call %List* @make_list(%Val* %vs, %List* %nl, i64 %ni)
+  ret %List* %out
 
 end:
-  ret %List %l
+  ret %List* %lp
 }
 
-define %List @cons(%Val %v, %List %l) {
+define %List* @cons(%Val %v, %List* %lp) {
   %1 = insertvalue %List undef, %Val %v, 0
-  %lp = call i8* @GC_malloc(i64 192)
-  %lpc = bitcast i8* %lp to %List*
-  store %List %l, %List* %lpc
-  %2 = insertvalue %List %1, %List* %lpc, 1
-  ret %List %2
+  %2 = insertvalue %List %1, %List* %lp, 1
+  %size = ptrtoint %List* getelementptr (%List, %List* null, i64 1) to i64
+  %outp = call i8* @GC_malloc(i64 %size)
+  %outpc = bitcast i8* %outp to %List*
+  store %List %2, %List* %outpc
+  ret %List* %outpc
 }
 
 define %Val @call_plus(%Env %env, %Args %args) {
@@ -135,12 +143,36 @@ exit:
   ret %Val %out
 }
 
+define %Val @make_list_val(%List* %lp) {
+  %1 = insertvalue %Val undef, i8 4, 0
+  %p = bitcast %List* %lp to i8*
+  %2 = insertvalue %Val %1, i8* %p, 1
+  ret %Val %2
+}
+
+define %Val @call_func_val(%Val %v, %Args %args) {
+  %frp = extractvalue %Val %v, 1
+  %fp = bitcast i8* %frp to %Func*
+  %f = load %Func, %Func* %fp
+  %cf = extractvalue %Func %f, 0
+  %e = extractvalue %Func %f, 1
+  %out = call %Val %cf (%Env %e, %Args %args)
+  ret %Val %out
+}
+
+define void @println(%Val %v) {
+  call void @print(%Val %v)
+  %nl = getelementptr inbounds [2 x i8], [2 x i8]* @nl_str, i64 0, i64 0
+  call i32 (i8*, ...) @printf(i8* %nl)
+  ret void
+}
 
 define void @print(%Val %v) {
-  %is = getelementptr inbounds [4 x i8], [4 x i8]* @int_str, i64 0, i64 0
-  %ss = getelementptr inbounds [6 x i8], [6 x i8]* @str_str, i64 0, i64 0
-  %us = getelementptr inbounds [5 x i8], [5 x i8]* @unk_str, i64 0, i64 0
-  %fs = getelementptr inbounds [7 x i8], [7 x i8]* @func_str, i64 0, i64 0
+  %is = getelementptr inbounds [3 x i8], [3 x i8]* @int_str, i64 0, i64 0
+  %ss = getelementptr inbounds [5 x i8], [5 x i8]* @str_str, i64 0, i64 0
+  %us = getelementptr inbounds [10 x i8], [10 x i8]* @unk_str, i64 0, i64 0
+  %fs = getelementptr inbounds [6 x i8], [6 x i8]* @func_str, i64 0, i64 0
+
   %type = extractvalue %Val %v, 0
   %x = extractvalue %Val %v, 1
 
@@ -171,7 +203,8 @@ is_str:
   ret void
 
 is_list:
-  ;; TODO: print list
+  %lp = bitcast i8* %x to %List*
+  call void @print_list(%List* %lp)
   ret void
 
 is_func:
@@ -179,8 +212,41 @@ is_func:
   ret void
 
 default:
-  call i32 (i8*, ...) @printf(i8* %us)
+  call i32 (i8*, ...) @printf(i8* %us, i8 %type, i8* %x)
   ret void
+}
+
+define void @print_list(%List* %lp) {
+entry:
+  %lps = getelementptr inbounds [2 x i8], [2 x i8]* @lp_str, i64 0, i64 0
+  %rps = getelementptr inbounds [2 x i8], [2 x i8]* @rp_str, i64 0, i64 0
+  call i32 (i8*, ...) @printf(i8* %lps)
+  call void @print_list_vals(%List* %lp)
+  call i32 (i8*, ...) @printf(i8* %rps)
+  ret void
+}
+
+define void @print_list_vals(%List* %lp) {
+  %sps = getelementptr inbounds [2 x i8], [2 x i8]* @sp_str, i64 0, i64 0
+  %cmp = icmp eq %List* %lp, null
+  br i1 %cmp, label %done, label %more
+
+done:
+  ret void
+
+more:
+  %l = load %List, %List* %lp
+  %car = extractvalue %List %l, 0
+  call void @print(%Val %car)
+  %cdr = extractvalue %List %l, 1
+  %more_el = icmp ne %List* %cdr, null
+  br i1 %more_el, label %recurse, label %done
+
+recurse:
+  call i32 (i8*, ...) @printf(i8* %sps)
+  call void @print_list_vals(%List* %cdr)
+  ret void
+
 }
 
 define %Val @make_bool_val(i1 %x) {
@@ -203,22 +269,3 @@ define %Val @make_str_val(i8* %s) {
   ret %Val %2
 }
 
-define %Val @make_list_val(%List %l) {
-  %1 = insertvalue %Val undef, i8 4, 0
-  %lp = call i8* @GC_malloc(i64 192)
-  %lpc = bitcast i8* %lp to %List*
-  store %List %l, %List* %lpc
-  %2 = insertvalue %Val %1, i8* %lp, 1
-  ret %Val %2
-}
-
-
-define %Val @call_func_val(%Val %v, %Args %args) {
-  %frp = extractvalue %Val %v, 1
-  %fp = bitcast i8* %frp to %Func*
-  %f = load %Func, %Func* %fp
-  %cf = extractvalue %Func %f, 0
-  %e = extractvalue %Func %f, 1
-  %out = call %Val %cf (%Env %e, %Args %args)
-  ret %Val %out
-}

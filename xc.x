@@ -387,7 +387,7 @@
       (let ()
         (define e (emit sexpr global))
         (if e
-          (let () (display (string-append "  call void @print(%Val " e ")")) (newline))
+          (let () (display (string-append "  call void @println(%Val " e ")")) (newline))
           #f)
         (repl)))))
 
