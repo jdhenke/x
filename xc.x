@@ -83,156 +83,95 @@
       ((equal? c "\"")    (read-string))
       (#t                 (read-symbol)))))
 
-;;; EVAL
+;;; EMIT
 
-;(define (eval sexpr env)
-;  (cond ((list? sexpr)    (eval-verb sexpr env))
-;        ((boolean? sexpr) sexpr)
-;        ((number? sexpr)  sexpr)
-;        ((string? sexpr)  sexpr)
-;        ((symbol? sexpr)  (lookup env sexpr))
-;        (#t (error "unknown sexpr type" sexpr))))
-;
-;(define (eval-verb sexpr env)
-;  (cond ((null? sexpr) sexpr)
-;        ((equal? (car sexpr) (symbol "define"))  (eval-define sexpr env))
-;        ((equal? (car sexpr) (symbol "set!"))    (eval-set! sexpr env))
-;        ((equal? (car sexpr) (symbol "lambda"))  (define-lambda sexpr env))
-;        ((equal? (car sexpr) (symbol "let"))     (eval-let sexpr env))
-;        ((equal? (car sexpr) (symbol "let*"))    (eval-let sexpr env))
-;        ((equal? (car sexpr) (symbol "if"))      (eval-if sexpr env))
-;        ((equal? (car sexpr) (symbol "cond"))    (eval-cond sexpr env))
-;        ((equal? (car sexpr) (symbol "or"))      (eval-or sexpr env))
-;        ((equal? (car sexpr) (symbol "and"))     (eval-and sexpr env))
-;        (#t                                      (call-func sexpr env))))
-;
-;(define (eval-define sexpr env)
-;  (if (list? (second sexpr))
-;    (define-func sexpr env)
-;    (define-var sexpr env)))
-;
-;(define (bind-func-args argnames args)
-;  (if (and (> (length argnames) 1) (equal? (second (reverse argnames)) "."))
-;    (cons (list (last argnames) (sublist args (- (length argnames) 2) (length args)))
-;          (zip (sublist argnames 0 (- (length argnames) 2)) args))
-;    (zip argnames args)))
-;
-;(define (define-func sexpr env)
-;  (let ((funcname (string (caadr sexpr)))
-;        (argnames (map string (cdadr sexpr)))
-;        (body (cddr sexpr)))
-;    (define f (lambda args
-;      (let ((env (list (bind-func-args argnames args) env)))
-;        (let loop ((body body) (last #f))
-;          (if (null? body)
-;            last
-;            (loop (cdr body) (eval (car body) env)))))))
-;    (set-car! env (cons (list funcname f) (car env)))
-;    f))
-;
-;(define (define-var sexpr env)
-;  (let ((name (string (second sexpr)))
-;        (val (eval (third sexpr) env)))
-;    (set-car! env (cons (list name val) (car env)))
-;    val))
-;
-;(define (define-lambda sexpr env)
-;  (lambda args 
-;    (let* ((binds (if (list? (second sexpr))
-;                    (zip (map string (cadr sexpr)) args)
-;                    (list (list (string (second sexpr)) args))))
-;           (lenv (list binds env)))
-;      (let loop ((body (cddr sexpr)) (last 0))
-;        (if (null? body)
-;          last
-;          (loop (cdr body) (eval (car body) lenv)))))))
-;
-;(define (eval-if sexpr env)
-;  (let* ((p (cadr sexpr))
-;         (t (caddr sexpr))
-;         (f (if (> (length sexpr) 3) (cadddr sexpr) #f))
-;         (pv (eval p env)))
-;    (eval (if pv t f) env)))
-;
-;(define (eval-cond sexpr env)
-;  (let loop ((conds (cdr sexpr)))
-;    (if (null? conds)
-;      #f
-;      (if (eval (caar conds) env)
-;        (eval (cadar conds) env)
-;        (loop (cdr conds))))))
-;
-;(define (eval-let sexpr env)
-;  (let* ((let-name (if (list? (second sexpr)) #f (string (second sexpr))))
-;         (arg-clause (find list? sexpr))
-;         (argnames (map (lambda (p) (string (car p))) arg-clause))
-;         (body (if let-name (cdddr sexpr) (cddr sexpr))))
-;    (let ((env (list (list) env)))
-;      (define (f . args)
-;        (let ((env (list (zip argnames args) env)))
-;          (let body-loop ((body body) (last #f))
-;            (if (null? body)
-;              last
-;              (body-loop (cdr body) (eval (car body) env))))))
-;      (if let-name (set-car! env (list (list let-name f))) #f)
-;      (let arg-loop ((exprs arg-clause)
-;                     (vals (list)))
-;        (if (null? exprs)
-;          (apply f (reverse vals))
-;          (let* ((arg-env (list (zip argnames (reverse vals)) env))
-;                 (val (eval (cadar exprs) arg-env)))
-;            (arg-loop (cdr exprs) (cons val vals))))))))
-;
-;(define (eval-or sexpr env)
-;  (let loop ((clauses (cdr sexpr)))
-;    (cond ((null? clauses) #f)
-;          ((eval (car clauses) env) #t)
-;          (#t (loop (cdr clauses))))))
-;
-;(define (eval-and sexpr env)
-;  (let loop ((clauses (cdr sexpr)))
-;    (cond ((null? clauses) #t)
-;          ((not (eval (car clauses) env)) #f)
-;          (#t (loop (cdr clauses))))))
-;
-;(define (eval-set! sexpr env)
-;  (let ((name (string (cadr sexpr)))
-;        (val (eval (caddr sexpr) env)))
-;    (let loop ((env env))
-;      (if (not env)
-;        (error "undefined" name))
-;      (let ((p (find (lambda (p) (equal? (car p) name)) (car env))))
-;       (if p
-;         (set-cdr! p (list val))
-;         (loop (cadr env)))))))
-;
-;(define (call-func sexpr env)
-;  (let ((f (eval (car sexpr) env))
-;        (args (map (lambda (s) (eval s env)) (cdr sexpr))))
-;    (apply f args)))
+(define (emit sexpr env)
+  (cond ((boolean? sexpr) (emit-bool sexpr env))
+        ((number? sexpr) (emit-number sexpr env))
+        ((string? sexpr) (emit-string sexpr env))
+        ((symbol? sexpr) (emit-lookup-symbol sexpr env))
+        ((not (list? sexpr)) (error "invalid sexpr type" sexpr))
+        ;; ADD special forms!
+        (#t (emit-call-func sexpr env))))
 
-;(define (lookup env sexpr)
-;  (let ((name (string sexpr))
-;        (defs (car env))
-;        (parent (cadr env)))
-;    (let ((d (find (lambda (d) (equal? (car d) name)) defs)))
-;      (if d
-;        (cadr d)
-;        (if parent (lookup parent name) (error "undefined" name))))))
+(define (emit-bool sexpr env)
+  (emit-expr "call %Val @make_bool_val(i1 " (if sexpr 1 0) ")"))
 
-(define next-e
-  (let ((x 0))
-    (lambda ()
-      (set! x (+ x 1))
-      x)))
+(define (emit-number sexpr env)
+  (emit-expr "call %Val @make_int_val(i64 " sexpr ")"))
 
-(define next-s
-  (let ((x 0))
-    (lambda ()
-      (set! x (+ x 1))
-      x)))
+(define (emit-string sexpr env)
+  (define s (emit-const sexpr))
+  (emit-expr "call %Val @make_str_val(i8* " s ")"))
 
-(define constants '())
+(define (emit-lookup-symbol sexpr env)
+  (let* ((d (lookup env sexpr))
+         (depth (car d))
+         (offset (cadr d)))
+    (emit-expr "call %Val @lookup(%Env %env, i64 " depth ", i64 " offset ")")))
+
+(define (emit-call-func sexpr env)
+  (define fexp (emit (car sexpr) env))
+  (define argexps (map (lambda (arg) (emit arg env)) (cdr sexpr)))
+  (define args (emit-expr "call %Args @make_args(i64 " (length argexps) ")"))
+  (enumerate
+    (lambda (i arg) (emit-line "call void @set_arg(%Args " args ", i64 " i ", %Val " arg ")"))
+    argexps)
+  (emit-expr "call %Val @call_func_val(%Val " fexp ", %Args " args ")"))
+
+  ; invoke with args )
+
+;(define (emit-define-set))
+;(define (emit-set))
+;
+;(define (emit-define-func))
+;(define (emit-lambda))
+;(define (emit-let))
+
+(define (emit-body body env self args print?)
+  ; called from containing scope
+  ; assemble closure env to include
+  ; - parent (^env)
+  ; - self (defined in ^env already, or let loop in new one)
+  ; - args 
+  ; - defs (forward pass)
+  ; 
+  ; push scope
+  ;   ; now outside of calling scope
+  ;   function header {
+  ;     assign args to env
+  ;     for each, switch on type, emit type
+    (for-each
+      (lambda (sexpr)
+        (define e (emit sexpr env))
+        (if print? (emit-line "call void @println(%Val " e ")")))
+      body)
+  ;     if print, println %e#
+
+
+  ;     return last e
+  ;   }
+  ; pop scope
+  ;
+  ; ; back in calling scope
+  ; 
+  ; emit-line %e# = <create func val>
+  ; if self, store in self ptr
+  ; returns %e# 
+  )
+
+;(define (emit-if))
+;(define (emit-cond))
+;(define (emit-or))
+;(define (emit-and))
+
+(define (emit-main all env)
+  (emit-raw-line "define i32 @main() {" )
+  (emit-line "%env = call %Env @make_global_env()")
+  (emit-body all env #f '() #t)
+  (emit-line "ret i32 0")
+  (emit-raw-line "}")
+  (set! scopes (cons (reverse scope) scopes)))
 
 (define (lookup env sym)
   (let loop ((env env)
@@ -244,157 +183,65 @@
         (if def
           (list depth (cadr def))
           (loop (cadr env) (+ 1 depth)))))))
-    
 
-(define (emit sexpr env)
-  (let ((e (string-append "%e" (number->string (next-e)))))
-        (cond ((number? sexpr)
-         (let ()
-           (display (string-append "  " e " = call %Val @make_int_val(i64 " (number->string sexpr) ")"))
-           (newline)
-           e))
-          ((boolean? sexpr)
-           (let ()
-           (display (string-append "  " e " = call %Val @make_bool_val(i1 " (if sexpr "1" "0") ")"))
-           (newline)
-           e))
-          ((string? sexpr)
-           (let* ((s (next-s))
-                   (sc (string-append "@.str." (number->string s)))
-                   (sv (string-append "%s" (number->string s)))
-                   (dims (string-append "["
-                                       (number->string (+ 1 (string-length sexpr)))
-                                       " x i8]")))
-             (set! constants (cons (string-append
-                                     sc
-                                     " = private unnamed_addr constant "
-                                     dims
-                                     " c\""
-                                     sexpr
-                                     "\\00\"")
-                                   constants))
-             ; %s1 = getelementptr [6 x i8], [6 x i8]* @.str.0, i32 0, i32 0
-             (display (string-append "  "
-                                     sv
-                                     " = getelementptr "
-                                     dims
-                                     ", "
-                                     dims
-                                     "* "
-                                     sc
-                                     ", i32 0, i32 0"))
-             (newline)
-             (display (string-append "  " e " = call %Val @make_str_val(i8* " sv ")"))
-             (newline)
-             e))
-          ((symbol? sexpr)
-           (let* ((l (lookup env sexpr))
-                  (depth (car l))
-                  (offset (cadr l)))
-             (display (string-append "; lookup symbol: " (string sexpr)))
-             (newline)
-             (display (string-append "  "
-                                     e
-                                     " = call %Val @lookup(%Env %env, i64 "
-                                     (number->string depth)
-                                     ", i64 "
-                                     (number->string offset)
-                                     ")"))
-             (newline)
-             e))
-          ((list? sexpr)
-           (let ()
-             ; recursively emit each part of the operand
-             (define fe (emit (car sexpr) env))
-             (define args (map (lambda (arg) (emit arg env)) (cdr sexpr)))
-             ; create args
-             (define i (next-e))
-             (display (string-append
-                        "  %"
-                        (number->string i)
-                        " = call i8* @GC_malloc(i64 "
-                        (number->string (* 128 (length args)))
-                        ")"))
-             (newline)
-             (define l (next-e))
-             (display (string-append 
-                        "  %"
-                        (number->string l)
-                        " = bitcast i8* %"
-                        (number->string i)
-                        " to %Val*"))
-             (newline)
-             (define c 0)
-             (for-each
-               (lambda (arg)
-                 (define s (string-append "%" (number->string (next-e))))
-                 (display (string-append "  "
-                                         s
-                                         " = getelementptr %Val, %Val* %"
-                                         (number->string l)
-                                         ", i64 "
-                                         (number->string c)))
-                 (newline)
-                 (display (string-append "  store %Val " arg ", %Val* " s))
-                 (newline)
-                 (set! c (+ c 1)))
-               args)
-             (define a1 (string-append "%a" (number->string (next-e))))
-             (display (string-append "  "
-                                     a1
-                                     "= insertvalue %Args undef, i64 "
-                                     (number->string (length args))
-                                     ", 1"))
-             (newline)
-             (define a2 (string-append "%a" (number->string (next-e))))
-             (display (string-append "  "
-                                     a2
-                                     " = insertvalue %Args "
-                                     a1
-                                     ", %Val* %"
-                                     (number->string l)
-                                     ", 0"))
-             (newline)
-             (display (string-append "  "
-                                     e
-                                     " = call %Val @call_func_val(%Val " 
-                                     fe
-                                     ", %Args "
-                                     a2
-                                     ")"))
-             (newline)
-             e))
-        (#t #f))))
+;;; ASSEMBLE
 
-;;; REPL
+(define constants '())
+(define scope '())
+(define scopes '())
 
-; must match xc.ll
+; returns pop
+;(define (push-scope)
+;  (lambda ()))
+
+(define c 0)
+(define (emit-const s)
+  (set! c (+ c 1))
+  (define dims (string-append "["
+                              (number->string (+ 1 (string-length s)))
+                              " x i8]"))
+  (define cv (string-append "@.str." (number->string c)))
+  (set! constants (cons (list cv " = private unnamed_addr constant " dims "c \"" s "\\00\"") constants))
+  cv)
+
+(define (emit-raw-line . args)
+  (set! scope (cons args scope)))
+
+(define (emit-line . args)
+  (set! scope (cons (cons "  " args) scope)))
+
+(define e 0)
+(define (emit-expr . args)
+  (set! e (+ e 1))
+  (let ((ev (string-append "%e" (number->string e))))
+    (apply emit-line (append (list ev " = ") args))
+    ev))
+  
+(define (print-file)
+  (for-each
+    (lambda (scope)
+      (for-each
+        (lambda (line)
+          (display (apply string-append (map
+                                          (lambda (x) (if (number? x) (number->string x) x)) line)))
+          (newline))
+        scope)
+      (newline))
+    (append (list constants) scopes)))
+
+;;; MAIN
+
 (define global (list
                  (list
                    (list (symbol "list") 0)
                    (list (symbol "+") 1))
                   #f))
 
-(display "define i32 @main() {")
-(newline)
-(display "  %env = call %Env @make_global_env()")
-(newline)
 
-(let repl ()
+(let ((all (let loop ((all '()))
   (let ((sexpr (read)))
     (if (eof? sexpr)
-      #f
-      (let ()
-        (define e (emit sexpr global))
-        (if e
-          (let () (display (string-append "  call void @println(%Val " e ")")) (newline))
-          #f)
-        (repl)))))
-
-(display "  ret i32 0")
-(newline)
-(display "}")
-(newline)
-(newline)
-
-(for-each (lambda (l) (display l) (newline)) constants)
+      (reverse all)
+      (loop (cons sexpr all)))))))
+  (emit-main all global)
+  (print-file))

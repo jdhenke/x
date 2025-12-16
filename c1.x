@@ -18,9 +18,7 @@ list
 +
 +
 
-; lists (requires func below)
-
-;; VERBS
+; VERBS
 (+ 1 2)
 (+ 2 3)
 (+ 4 5 6)
@@ -34,4 +32,8 @@ list
 ;(set! a 2)
 ;a ; want 2
 ;b ; want 1
-;
+
+
+; (define (five) 5)
+; (define (add-five x) (+ x 5))
+; (define (adder x) (lambda (y) (+ x y)))

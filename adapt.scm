@@ -19,6 +19,14 @@
   (lambda foo
     (apply f (append args foo))))
 
+(define (enumerate f l)
+  (let loop ((i 0)
+             (l l)
+             (last #f))
+    (if (null? l)
+      last
+      (loop (+ i 1) (cdr l) (f i (car l))))))
+
 
 (define native-funcs
   '(

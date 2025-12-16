@@ -50,21 +50,26 @@ define void @store_native_func(%Val** %vals, %Val(%Env, %Args)* %f, i64 %i) {
 }
 
 define %Val @lookup(%Env %env, i64 %depth, i64 %offset) {
+  %vp = call %Val* @lookupp(%Env %env, i64 %depth, i64 %offset)
+  %v = load %Val, %Val* %vp
+  ret %Val %v
+}
+
+define %Val* @lookupp(%Env %env, i64 %depth, i64 %offset) {
   %cmp = icmp eq i64 %depth, 0
   br i1 %cmp, label %access, label %next
 access:
   %vs = extractvalue %Env %env, 0
   %vpp = getelementptr %Val*, %Val** %vs, i64 %offset
   %vp = load %Val*, %Val** %vpp
-  %v = load %Val, %Val* %vp
-  ret %Val %v
+  ret %Val* %vp
 
 next:
   %pep = extractvalue %Env %env, 1
   %pe = load %Env, %Env* %pep
   %nd = sub i64 %depth, 1
-  %rv = call %Val @lookup(%Env %pe, i64 %nd, i64 %offset)
-  ret %Val %rv
+  %rv = call %Val* @lookupp(%Env %pe, i64 %nd, i64 %offset)
+  ret %Val* %rv
 }
 
 define %Val @make_func_val(%Func %f) {
@@ -269,3 +274,19 @@ define %Val @make_str_val(i8* %s) {
   ret %Val %2
 }
 
+define %Args @make_args(i64 %n) {
+  %size = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
+  %m = mul i64 %size, %n
+  %p = call i8* @GC_malloc(i64 %m)
+  %vs = bitcast i8* %p to %Val*
+  %1 = insertvalue %Args undef, %Val* %vs, 0
+  %2 = insertvalue %Args %1, i64 %n, 1
+  ret %Args %2
+}
+
+define void @set_arg(%Args %args, i64 %i, %Val %v) {
+  %vs = extractvalue %Args %args, 0
+  %vp = getelementptr %Val, %Val* %vs, i64 %i
+  store %Val %v, %Val* %vp
+  ret void
+}
