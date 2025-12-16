@@ -1,5 +1,5 @@
 %Val = type { i8, i8* } ; type, data
-%Env = type { %Val**, %Env* } ; start of list, parent
+%Env = type { %Val*, %Env* } ; start of list, parent
 %Args = type { %Val*, i64 } ; start of list, size
 
 %Func = type { %Val(%Env, %Args)*, %Env } ; ptr, closure
@@ -23,14 +23,14 @@ define %Env @make_global_env() {
   ; create env with val in it
   %size = mul i64 64, 2
   %valsp = call i8* @GC_malloc(i64 %size) ; x2 element
-  %vals = bitcast i8* %valsp to %Val**
+  %vals = bitcast i8* %valsp to %Val*
 
   ; be sure to update size accordingly
-  call void @store_native_func(%Val** %vals, %Val(%Env, %Args)* @call_list, i64 0)
-  call void @store_native_func(%Val** %vals, %Val(%Env, %Args)* @call_plus, i64 1)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 0)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_plus, i64 1)
 
   ; construct global env with native funcs
-  %e1 = insertvalue %Env undef, %Val** %vals, 0
+  %e1 = insertvalue %Env undef, %Val* %vals, 0
   %e2 = insertvalue %Env %e1, %Env* null, 1
 
   ; ret env
@@ -38,14 +38,13 @@ define %Env @make_global_env() {
 
 }
 
-define void @store_native_func(%Val** %vals, %Val(%Env, %Args)* %f, i64 %i) {
-  %nulle = insertvalue %Env undef, %Val** null, 0
+define void @store_native_func(%Val* %vals, %Val(%Env, %Args)* %f, i64 %i) {
+  %nulle = insertvalue %Env undef, %Val* null, 0
   %f1 = insertvalue %Func undef, %Val(%Env, %Args)* %f, 0
   %f2 = insertvalue %Func %f1, %Env %nulle, 1
   %fv = call %Val @make_func_val(%Func %f2)
-  %fvp = call %Val* @val_ptr(%Val %fv)
-  %vi = getelementptr %Val*, %Val** %vals, i64 %i
-  store %Val* %fvp, %Val** %vi
+  %fvp = getelementptr %Val, %Val* %vals, i64 %i
+  store %Val %fv, %Val** %fvp
   ret void
 }
 
@@ -60,8 +59,7 @@ define %Val* @lookupp(%Env %env, i64 %depth, i64 %offset) {
   br i1 %cmp, label %access, label %next
 access:
   %vs = extractvalue %Env %env, 0
-  %vpp = getelementptr %Val*, %Val** %vs, i64 %offset
-  %vp = load %Val*, %Val** %vpp
+  %vp = getelementptr %Val, %Val* %vs, i64 %offset
   ret %Val* %vp
 
 next:
@@ -289,4 +287,22 @@ define void @set_arg(%Args %args, i64 %i, %Val %v) {
   %vp = getelementptr %Val, %Val* %vs, i64 %i
   store %Val %v, %Val* %vp
   ret void
+}
+
+define void @set(%Env %env, i64 %depth, i64 %offset, %Val %v) {
+  %vp = call %Val* @lookupp(%Env %env, i64 %depth, i64 %offset)
+  store %Val %v, %Val* %vp
+  ret void
+}
+
+define %Env @sub_env(%Env %env, i64 %n) {
+  %size = mul i64 64, %n
+  %p = call i8* @GC_malloc(i64 %size)
+  %vs = bitcast i8* %p to %Val**
+  %1 = insertvalue %Env undef, %Val** %vs, 0
+  %ep = call i8* @GC_malloc(i64 64)
+  %epc = bitcast i8* %ep to %Env*
+  store %Env %env, %Env* %epc
+  %2 = insertvalue %Env %1, %Env* %epc, 1
+  ret %Env %2
 }

@@ -27,8 +27,10 @@ list
 (list #t 42 "joe")
 (list #t 42 "joe" (list "a" "b" "c"))
 
-;(define a 1)
-;(define b a)
+(define a 1)
+a
+(define b (+ a 1))
+b
 ;(set! a 2)
 ;a ; want 2
 ;b ; want 1

@@ -22,10 +22,10 @@
 (define (enumerate f l)
   (let loop ((i 0)
              (l l)
-             (last #f))
+             (out '()))
     (if (null? l)
-      last
-      (loop (+ i 1) (cdr l) (f i (car l))))))
+      (reverse out)
+      (loop (+ i 1) (cdr l) (cons (f i (car l)) out)))))
 
 
 (define native-funcs

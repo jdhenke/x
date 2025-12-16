@@ -91,6 +91,7 @@
         ((string? sexpr) (emit-string sexpr env))
         ((symbol? sexpr) (emit-lookup-symbol sexpr env))
         ((not (list? sexpr)) (error "invalid sexpr type" sexpr))
+        ((equal? (car sexpr) 'define) (emit-define sexpr env))
         ;; ADD special forms!
         (#t (emit-call-func sexpr env))))
 
@@ -119,12 +120,21 @@
     argexps)
   (emit-expr "call %Val @call_func_val(%Val " fexp ", %Args " args ")"))
 
-  ; invoke with args )
+(define (emit-define sexpr env)
+  (if (list? (cadr sexpr))
+    (emit-define-func sexpr env)
+    (emit-define-set sexpr env)))
 
-;(define (emit-define-set))
+(define (emit-define-set sexpr env)
+  (let* ((d (lookup env (cadr sexpr)))
+         (depth (car d))
+         (offset (cadr d)))
+    (define e (emit (caddr sexpr) env))
+    (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " e ")")
+    e))
 ;(define (emit-set))
 ;
-;(define (emit-define-func))
+(define (emit-define-func) (error "not implemented"))
 ;(define (emit-lambda))
 ;(define (emit-let))
 
@@ -132,9 +142,20 @@
   ; called from containing scope
   ; assemble closure env to include
   ; - parent (^env)
-  ; - self (defined in ^env already, or let loop in new one)
-  ; - args 
+  ; - TODO: self (defined in ^env already, or let loop in new one)
+  ; - TODO: args 
   ; - defs (forward pass)
+
+  (define defs (enumerate
+                 (lambda (i sexpr )
+                   (list (if (list? (cadr sexpr)) (caadr sexpr) (cadr sexpr))
+                         i))
+                 (filter (lambda (sexpr)
+                           (and (list? sexpr) (equal? (car sexpr) 'define)))
+                         body)))
+
+  (define cenv (list defs env))
+  (define ev (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " (length cenv) ")"))
   ; 
   ; push scope
   ;   ; now outside of calling scope
@@ -143,7 +164,7 @@
   ;     for each, switch on type, emit type
     (for-each
       (lambda (sexpr)
-        (define e (emit sexpr env))
+        (define e (emit sexpr cenv))
         (if print? (emit-line "call void @println(%Val " e ")")))
       body)
   ;     if print, println %e#
@@ -167,7 +188,7 @@
 
 (define (emit-main all env)
   (emit-raw-line "define i32 @main() {" )
-  (emit-line "%env = call %Env @make_global_env()")
+  (emit-line "%penv = call %Env @make_global_env()")
   (emit-body all env #f '() #t)
   (emit-line "ret i32 0")
   (emit-raw-line "}")
