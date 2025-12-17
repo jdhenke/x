@@ -93,6 +93,7 @@
         ((not (list? sexpr))           (error "invalid sexpr type" sexpr))
         ((equal? (car sexpr) 'define)  (emit-define sexpr env))
         ((equal? (car sexpr) 'set!)    (emit-set sexpr env))
+        ((equal? (car sexpr) 'lambda)  (emit-lambda sexpr env))
         ;; ADD special forms!
         (#t (emit-call-func sexpr env))))
 
@@ -141,7 +142,10 @@
     (define e (emit-body (cddr sexpr) env #f (cdadr sexpr) #f))
     (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " e ")")
   e))
-;(define (emit-lambda))
+
+(define (emit-lambda sexpr env)
+  (emit-body (cddr sexpr) env #f (cadr sexpr) #f))
+
 ;(define (emit-let))
 
 (define (emit-body body env self args print?)

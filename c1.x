@@ -46,5 +46,6 @@ c
 (add-five (five))
 (add-five 10)
 
-;(define (adder x) (lambda (y) (+ x y)))
-;(define add-size (adder 6))
+(define (adder x) (lambda (y) (+ x y)))
+(define add-six (adder 6))
+(add-six 12)
