@@ -327,3 +327,9 @@ define %Env @sub_env(%Env %env, i64 %n) {
   %2 = insertvalue %Env %1, %Env* %epc, 1
   ret %Env %2
 }
+
+define i1 @to_i1(%Val %v) {
+  %d = extractvalue %Val %v, 1
+  %out = ptrtoint i8* %d to i1
+  ret i1 %out
+}

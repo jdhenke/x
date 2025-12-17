@@ -96,6 +96,7 @@
         ((equal? (car sexpr) 'lambda)  (emit-lambda sexpr env))
         ((equal? (car sexpr) 'let)     (emit-let sexpr env))
         ((equal? (car sexpr) 'let*)    (emit-let sexpr env))
+        ((equal? (car sexpr) 'if)      (emit-if sexpr env))
         ;; ADD special forms!
         (#t (emit-call-func sexpr env))))
 
@@ -252,7 +253,25 @@
 
   f)
 
-;(define (emit-if))
+(define (emit-if sexpr env)
+  (let ((pred (cadr sexpr))
+        (t (caddr sexpr))
+        (f (cadddr sexpr)))
+    (define p (emit pred env))
+    (define cmp (emit-expr "call i1 @to_i1(%Val " p ")"))
+    (define tl (next-l))
+    (define fl (next-l))
+    (define dl (next-l))
+    (emit-line "br i1 " cmp ", label %" tl ", label %" fl)
+    (emit-raw-line tl ":")
+    (define tv (emit t env))
+    (emit-line "br label %" dl)
+    (emit-raw-line fl ":")
+    (define fv (emit f env))
+    (emit-line "br label %" dl)
+    (emit-raw-line dl ":")
+    (emit-expr " phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl" ]")))
+
 ;(define (emit-cond))
 ;(define (emit-or))
 ;(define (emit-and))
@@ -319,6 +338,11 @@
   (let ((ev (string-append "%e" (number->string e))))
     (apply emit-line (append (list ev " = ") args))
     ev))
+
+(define l 0)
+(define (next-l)
+  (set! l (+ l 1))
+  (string-append "l" (number->string l)))
   
 (define (print-file)
   (for-each
