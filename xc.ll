@@ -80,6 +80,13 @@ define %Val @make_func_val(%Func %f) {
   ret %Val %2
 }
 
+define %Val @to_func_val(%Val(%Env, %Args)* %f, %Env %env) {
+  %f1 = insertvalue %Func undef, %Val(%Env, %Args)* %f, 0
+  %f2 = insertvalue %Func %f1, %Env %env, 1
+  %v = call %Val @make_func_val(%Func %f2)
+  ret %Val %v
+}
+
 define %Val* @val_ptr(%Val %v) {
   %size = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
   %p = call i8* @GC_malloc(i64 %size)
@@ -280,6 +287,13 @@ define %Args @make_args(i64 %n) {
   %1 = insertvalue %Args undef, %Val* %vs, 0
   %2 = insertvalue %Args %1, i64 %n, 1
   ret %Args %2
+}
+
+define %Val @get_arg(%Args %args, i64 %i) {
+  %vs = extractvalue %Args %args, 0
+  %vp = getelementptr %Val, %Val* %vs, i64 %i
+  %v = load %Val, %Val* %vp
+  ret %Val %v
 }
 
 define void @set_arg(%Args %args, i64 %i, %Val %v) {

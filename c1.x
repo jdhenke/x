@@ -40,6 +40,11 @@ c
 ;b ; want 1
 
 
-; (define (five) 5)
-; (define (add-five x) (+ x 5))
-; (define (adder x) (lambda (y) (+ x y)))
+(define (add-five x) (+ x (five))) ; notice forward ref
+(define (five) 5)
+(five)
+(add-five (five))
+(add-five 10)
+
+;(define (adder x) (lambda (y) (+ x y)))
+;(define add-size (adder 6))

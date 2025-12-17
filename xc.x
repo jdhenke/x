@@ -91,7 +91,7 @@
         ((string? sexpr)               (emit-string sexpr env))
         ((symbol? sexpr)               (emit-lookup-symbol sexpr env))
         ((not (list? sexpr))           (error "invalid sexpr type" sexpr))
-        ((equal? (car sexpr) 'define)  (emit-set sexpr env))
+        ((equal? (car sexpr) 'define)  (emit-define sexpr env))
         ((equal? (car sexpr) 'set!)    (emit-set sexpr env))
         ;; ADD special forms!
         (#t (emit-call-func sexpr env))))
@@ -124,7 +124,7 @@
 (define (emit-define sexpr env)
   (if (list? (cadr sexpr))
     (emit-define-func sexpr env)
-    (emit-define-set sexpr env)))
+    (emit-set sexpr env)))
 
 (define (emit-set sexpr env)
   (let* ((d (lookup env (cadr sexpr)))
@@ -134,52 +134,67 @@
     (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " e ")")
     e))
 
-(define (emit-define-func) (error "not implemented"))
+(define (emit-define-func sexpr env)
+  (let* ((d (lookup env (caadr sexpr)))
+         (depth (car d))
+         (offset (cadr d)))
+    (define e (emit-body (cddr sexpr) env #f (cdadr sexpr) #f))
+    (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " e ")")
+  e))
 ;(define (emit-lambda))
 ;(define (emit-let))
 
 (define (emit-body body env self args print?)
-  ; called from containing scope
-  ; assemble closure env to include
-  ; - parent (^env)
-  ; - TODO: self (defined in ^env already, or let loop in new one)
-  ; - TODO: args 
-  ; - defs (forward pass)
 
-  (define defs (enumerate
+  (define pop (push-scope))
+
+  (define s (string-append "@s" (number->string (next-s))))
+  (emit-raw-line "define %Val " s "(%Env %penv, %Args %args) {")
+
+  (define argdefs (enumerate
+                    (lambda (i arg) (list arg i))
+                    args))
+
+  (define bodydefs (enumerate
                  (lambda (i sexpr )
                    (list (if (list? (cadr sexpr)) (caadr sexpr) (cadr sexpr))
-                         i))
+                         (+ (length argdefs) i)))
                  (filter (lambda (sexpr)
                            (and (list? sexpr) (equal? (car sexpr) 'define)))
                          body)))
 
-  (define cenv (list defs env))
-  (define ev (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " (length cenv) ")"))
-  ; 
-  ; push scope
-  ;   ; now outside of calling scope
-  ;   function header {
-  ;     assign args to env
-  ;     for each, switch on type, emit type
-    (for-each
-      (lambda (sexpr)
-        (define e (emit sexpr cenv))
-        (if print? (emit-line "call void @println(%Val " e ")")))
-      body)
-  ;     if print, println %e#
 
+  (define local (append argdefs bodydefs ))
 
-  ;     return last e
-  ;   }
-  ; pop scope
-  ;
-  ; ; back in calling scope
-  ; 
-  ; emit-line %e# = <create func val>
+  (define cenv (list local env))
+  (define n (+ (length argdefs) (length args)))
+  (define ev (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " n ")"))
+
+  (enumerate
+    (lambda (i arg) ; is is correct but argdefs come first
+      (let* ((d (lookup cenv arg))
+             (depth (car d))
+             (offset (cadr d)))
+        (define a (emit-expr "call %Val @get_arg(%Args %args, i64 " i ")"))
+        (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " a ")")))
+    args)
+
+  (define last #f)
+  (for-each
+    (lambda (sexpr)
+      (define e (emit sexpr cenv))
+      (set! last e)
+      (if print? (emit-line "call void @println(%Val " e ")")))
+    body)
+
+  (emit-line "ret %Val " last)
+  (emit-raw-line "}")
+
+  (pop)
+
+  (define f (emit-expr "call %Val @to_func_val(%Val(%Env, %Args)* " s ", %Env %env)"))
   ; if self, store in self ptr
-  ; returns %e# 
-  )
+  f)
 
 ;(define (emit-if))
 ;(define (emit-cond))
@@ -188,8 +203,10 @@
 
 (define (emit-main all env)
   (emit-raw-line "define i32 @main() {" )
-  (emit-line "%penv = call %Env @make_global_env()")
-  (emit-body all env #f '() #t)
+  (emit-line "%env = call %Env @make_global_env()")
+  (define m (emit-body all env #f '() #t))
+  (define args (emit-expr "insertvalue %Args undef, i64 0, 1"))
+  (emit-line "call %Val @call_func_val(%Val " m ", %Args " args ")")
   (emit-line "ret i32 0")
   (emit-raw-line "}")
   (set! scopes (cons (reverse scope) scopes)))
@@ -211,9 +228,18 @@
 (define scope '())
 (define scopes '())
 
+(define s 0)
+(define (next-s)
+  (set! s (+ s 1))
+  s)
+
 ; returns pop
-;(define (push-scope)
-;  (lambda ()))
+(define (push-scope)
+  (define last scope)
+  (set! scope '())
+  (lambda ()
+    (set! scopes (cons (reverse scope) scopes))
+    (set! scope last)))
 
 (define c 0)
 (define (emit-const s)
