@@ -144,10 +144,9 @@
   (let* ((d (lookup env (caadr sexpr)))
          (depth (car d))
          (offset (cadr d)))
-    ; FIXME: pass named and rest
     (define named (cdadr sexpr))
     (define rest #f)
-    (if (equal? (second (reverse named)) (symbol "."))
+    (if (and (>= (length named) 2) (equal? (second (reverse named)) (symbol ".")))
       (let ()
         (set! rest (first (reverse named)))
         (set! named (reverse (cddr (reverse named))))))
@@ -160,7 +159,7 @@
                       (let ()
                         (define named (cadr sexpr))
                         (define rest #f)
-                        (if (equal? (second (reverse named)) (symbol "."))
+                        (if (and (>= (length named) 2) (equal? (second (reverse named)) (symbol ".")))
                           (let ()
                             (set! rest (first (reverse named)))
                             (set! named (reverse (cddr (reverse named))))))
@@ -174,7 +173,6 @@
   (define self (if (list? (cadr sexpr)) #f (cadr sexpr)))
   (define argdefs ((if self caddr cadr) sexpr))
   (define argnames (map car argdefs))
-  ; FIXME: pass named and rest
   (define bv (emit-body (cddr sexpr) env self argnames #f #f))
   (define initargs (emit-let-args argdefs env))
   (emit-expr "call %Val @call_func_val(%Val " bv ", %Args " initargs ")"))
@@ -245,8 +243,6 @@
   (emit-raw-line "define %Val " s "(%Env %penv, %Args %args) {")
 
   (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " n ")")
-
-  ;; FIXME: named args vs. rest args
 
   (enumerate
     (lambda (i arg) ; is is correct but argdefs come first
