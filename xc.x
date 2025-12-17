@@ -94,6 +94,8 @@
         ((equal? (car sexpr) 'define)  (emit-define sexpr env))
         ((equal? (car sexpr) 'set!)    (emit-set sexpr env))
         ((equal? (car sexpr) 'lambda)  (emit-lambda sexpr env))
+        ((equal? (car sexpr) 'let)     (emit-let sexpr env))
+        ((equal? (car sexpr) 'let*)    (emit-let sexpr env))
         ;; ADD special forms!
         (#t (emit-call-func sexpr env))))
 
@@ -146,14 +148,44 @@
 (define (emit-lambda sexpr env)
   (emit-body (cddr sexpr) env #f (cadr sexpr) #f))
 
-;(define (emit-let))
+(define (emit-let sexpr env)
+  (define self (if (list? (cadr sexpr)) #f (cadr sexpr)))
+  (define argdefs ((if self caddr cadr) sexpr))
+  (define argnames (map car argdefs))
+  (define bv (emit-body (cddr sexpr) env self argnames #f))
+  (define initargs (emit-let-args argdefs env))
+  (emit-expr "call %Val @call_func_val(%Val " bv ", %Args " initargs ")"))
 
-(define (emit-body body env self args print?)
+(define (emit-let-args argdefs env)
+  (define cenv
+    (list 
+      (enumerate
+        (lambda (i argdef)
+          (list (car argdef) i))
+        argdefs)
+      env))
+  (define s (string-append "@s" (number->string (next-s))))
 
   (define pop (push-scope))
+  (emit-raw-line "define %Args " s "(%Env %penv) {")
+  (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " (length argdefs) ")")
 
-  (define s (string-append "@s" (number->string (next-s))))
-  (emit-raw-line "define %Val " s "(%Env %penv, %Args %args) {")
+  (define args (emit-expr "call %Args @make_args(i64 " (length argdefs) ")"))
+
+  (enumerate
+    (lambda (i argdef)
+      (define argv (emit (cadr argdef) cenv))
+      (emit-line "call void @set(%Env %env, i64 0, i64 " i ", %Val " argv ")")
+      (emit-line "call void @set_arg(%Args " args ", i64 " i ", %Val " argv ")"))
+    argdefs)
+
+  (emit-line "ret %Args " args)
+  (emit-raw-line "}")
+  (pop)
+
+  (emit-expr "call %Args " s "(%Env %env)"))
+
+(define (emit-body body env self args print?)
 
   (define argdefs (enumerate
                     (lambda (i arg) (list arg i))
@@ -167,12 +199,27 @@
                            (and (list? sexpr) (equal? (car sexpr) 'define)))
                          body)))
 
-
   (define local (append argdefs bodydefs ))
 
-  (define cenv (list local env))
-  (define n (+ (length argdefs) (length args)))
-  (define ev (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " n ")"))
+
+  ; must be updated with f val when constructed
+  (define penv (if self (list (list (list self 0)) env) env))
+  (define ev
+    (if self 
+      (emit-expr "call %Env @sub_env(%Env %env, i64 1)")
+      "%env"))
+
+  (define cenv (list local penv))
+  (define n (length local))
+
+  ;;; new scope
+
+  (define pop (push-scope))
+
+  (define s (string-append "@s" (number->string (next-s))))
+  (emit-raw-line "define %Val " s "(%Env %penv, %Args %args) {")
+
+  (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " n ")")
 
   (enumerate
     (lambda (i arg) ; is is correct but argdefs come first
@@ -196,8 +243,13 @@
 
   (pop)
 
-  (define f (emit-expr "call %Val @to_func_val(%Val(%Env, %Args)* " s ", %Env %env)"))
-  ; if self, store in self ptr
+  ;;; orig scope
+
+  (define f (emit-expr "call %Val @to_func_val(%Val(%Env, %Args)* " s ", %Env " ev ")"))
+
+  ; must match env construction before
+  (if self (emit-line "call void @set(%Env " ev ", i64 0, i64 0, %Val " f ")"))
+
   f)
 
 ;(define (emit-if))

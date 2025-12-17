@@ -95,6 +95,13 @@ define %Val* @val_ptr(%Val %v) {
   ret %Val* %vp
 }
 
+define %Val* @empty_val_ptr() {
+  %size = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
+  %p = call i8* @GC_malloc(i64 %size)
+  %vp = bitcast i8* %p to %Val*
+  ret %Val* %vp
+}
+
 define %Val @call_list(%Env %env, %Args %args) {
   %vs = extractvalue %Args %args, 0
   %size = extractvalue %Args %args, 1
