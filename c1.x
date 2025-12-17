@@ -74,8 +74,14 @@
 ;
 ;(cond (#f 1))
 
-(define z 0)
-(or #f #f)
-(or #f (set! z 2))
+;(define z 0)
+;(or #f #f)
+;(or #f (set! z 2))
+;z
+;(or #f #f #t)
+
+(define z #f)
+(and #f (set! z #t))
 z
-(or #f #f #t)
+(and #t (set! z #t))
+z

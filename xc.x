@@ -99,7 +99,7 @@
         ((equal? (car sexpr) 'if)      (emit-if sexpr env))
         ((equal? (car sexpr) 'cond)    (emit-cond sexpr env))
         ((equal? (car sexpr) 'or)      (emit-or sexpr env))
-        ;; ADD special forms!
+        ((equal? (car sexpr) 'and)     (emit-and sexpr env))
         ;; add variadic funcs to 
         ;;  - define
         ;;  - lambda
@@ -348,7 +348,34 @@
   (emit-raw-line dl ":")
   (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl " ]"))
 
-;(define (emit-and))
+(define (emit-and sexpr env)
+  (define clauses (cdr sexpr))
+  (define tl (next-l))
+  (define fl (next-l))
+  (define firstl (next-l))
+  (emit-line "br label %" firstl)
+  (let loop ((clauses clauses)
+             (current firstl))
+    (if (null? clauses)
+      #f
+      (let ()
+        (define clause (car clauses))
+        (emit-raw-line current ":")
+        (define e (emit clause env))
+        (define b (emit-expr "call i1 @to_i1(%Val " e ")"))
+        (define next (if (= (length clauses) 1) tl (next-l)))
+        (emit-line "br i1 " b ", label %" next ", label %" fl)
+        (loop (cdr clauses)
+              next))))
+  (define dl (next-l))
+  (emit-raw-line tl ":")
+  (define tv (emit-expr "call %Val @make_bool_val(i1 1)"))
+  (emit-line "br label %" dl)
+  (emit-raw-line fl ":")
+  (define fv (emit-expr "call %Val @make_bool_val(i1 0)"))
+  (emit-line "br label %" dl)
+  (emit-raw-line dl ":")
+  (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl " ]"))
 
 (define (emit-main all env)
   (emit-raw-line "define i32 @main() {" )
