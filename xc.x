@@ -100,10 +100,6 @@
         ((equal? (car sexpr) 'cond)    (emit-cond sexpr env))
         ((equal? (car sexpr) 'or)      (emit-or sexpr env))
         ((equal? (car sexpr) 'and)     (emit-and sexpr env))
-        ;; add variadic funcs to 
-        ;;  - define
-        ;;  - lambda
-        ;;  - let
         (#t (emit-call-func sexpr env))))
 
 (define (emit-bool sexpr env)
@@ -148,18 +144,27 @@
   (let* ((d (lookup env (caadr sexpr)))
          (depth (car d))
          (offset (cadr d)))
-    (define e (emit-body (cddr sexpr) env #f (cdadr sexpr) #f))
+    ; FIXME: pass named and rest
+    (define named (cdadr sexpr))
+    (define rest #f)
+    (if (equal? (second (reverse named)) (symbol "."))
+      (let ()
+        (set! rest (first (reverse named)))
+        (set! named (reverse (cddr (reverse named))))))
+    (define e (emit-body (cddr sexpr) env #f named rest #f))
     (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " e ")")
-  e))
+    e))
 
 (define (emit-lambda sexpr env)
-  (emit-body (cddr sexpr) env #f (cadr sexpr) #f))
+  ; FIXME: pass named and rest
+  (emit-body (cddr sexpr) env #f (cadr sexpr) #f #f))
 
 (define (emit-let sexpr env)
   (define self (if (list? (cadr sexpr)) #f (cadr sexpr)))
   (define argdefs ((if self caddr cadr) sexpr))
   (define argnames (map car argdefs))
-  (define bv (emit-body (cddr sexpr) env self argnames #f))
+  ; FIXME: pass named and rest
+  (define bv (emit-body (cddr sexpr) env self argnames #f #f))
   (define initargs (emit-let-args argdefs env))
   (emit-expr "call %Val @call_func_val(%Val " bv ", %Args " initargs ")"))
 
@@ -192,11 +197,13 @@
 
   (emit-expr "call %Args " s "(%Env %env)"))
 
-(define (emit-body body env self args print?)
+(define (emit-body body env self named rest print?)
 
   (define argdefs (enumerate
                     (lambda (i arg) (list arg i))
-                    args))
+                    named))
+
+  (if rest (set! argdefs (append argdefs (list (list rest (length argdefs))))) )
 
   (define bodydefs (enumerate
                  (lambda (i sexpr )
@@ -228,14 +235,16 @@
 
   (emit-line "%env = call %Env @sub_env(%Env %penv, i64 " n ")")
 
+  ;; FIXME: named args vs. rest args
+
   (enumerate
     (lambda (i arg) ; is is correct but argdefs come first
-      (let* ((d (lookup cenv arg))
-             (depth (car d))
-             (offset (cadr d)))
         (define a (emit-expr "call %Val @get_arg(%Args %args, i64 " i ")"))
-        (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " a ")")))
-    args)
+        (emit-line "call void @set(%Env %env, i64 0, i64 " i ", %Val " a ")"))
+    named)
+
+  (if rest
+    (emit-line "call void @set_rest(%Env %env, %Args %args, i64 " (length named) ")"))
 
   (define last #f)
   (for-each
@@ -380,7 +389,7 @@
 (define (emit-main all env)
   (emit-raw-line "define i32 @main() {" )
   (emit-line "%env = call %Env @make_global_env()")
-  (define m (emit-body all env #f '() #t))
+  (define m (emit-body all env #f '() #f #t))
   (define args (emit-expr "insertvalue %Args undef, i64 0, 1"))
   (emit-line "call %Val @call_func_val(%Val " m ", %Args " args ")")
   (emit-line "ret i32 0")

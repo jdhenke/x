@@ -333,3 +333,30 @@ define i1 @to_i1(%Val %v) {
   %out = ptrtoint i8* %d to i1
   ret i1 %out
 }
+
+define void @set_rest(%Env %env, %Args %args, i64 %n) {
+entry: 
+  %na = extractvalue %Args %args, 1
+  %nr = sub i64 %na, %n
+  %size = mul i64 %nr, 64
+  %p = call i8* @GC_malloc(i64 %size)
+  %vs = bitcast i8* %p to %Val*
+  br label %header
+header:
+  %i = phi i64 [%n, %entry], [%ni, %body]
+  %cmp = icmp slt i64 %i, %na
+  br i1 %cmp, label %body, label %done
+body:
+  %av = call %Val @get_arg(%Args %args, i64 %i)
+  %ri = sub i64 %i, %n
+  %rp = getelementptr %Val, %Val* %vs, i64 %ri
+  store %Val %av, %Val* %rp
+  %ni = add i64 %i, 1
+  br label %header
+done:
+  %nr_minus_1 = sub i64 %nr, 1
+  %l = call %List* @make_list(%Val* %vs, %List* null, i64 %nr_minus_1)
+  %lv = call %Val @make_list_val(%List* %l)
+  call void @set(%Env %env, i64 0, i64 %n, %Val %lv)
+  ret void
+}
