@@ -97,6 +97,7 @@
         ((equal? (car sexpr) 'let)     (emit-let sexpr env))
         ((equal? (car sexpr) 'let*)    (emit-let sexpr env))
         ((equal? (car sexpr) 'if)      (emit-if sexpr env))
+        ((equal? (car sexpr) 'cond)    (emit-cond sexpr env))
         ;; ADD special forms!
         (#t (emit-call-func sexpr env))))
 
@@ -270,9 +271,49 @@
     (define fv (emit f env))
     (emit-line "br label %" dl)
     (emit-raw-line dl ":")
-    (emit-expr " phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl" ]")))
+    (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl" ]")))
 
-;(define (emit-cond))
+(define (emit-cond sexpr env)
+  (define dl (next-l))
+  (define bl (next-l))
+  (define conds (cdr sexpr))
+  (define firstl (next-l))
+  (emit-line "br label %" firstl)
+  (define phi
+    (let loop ((conds conds)
+               (current firstl)
+               (phi "phi %Val "))
+      (if (null? conds)
+        phi
+        (let ()
+          (emit-raw-line current ":")
+          (define cond (car conds))
+          (define pexpr (car cond))
+          (define texpr (cadr cond))
+          (define p (emit pexpr env))
+          (define tl (next-l))
+          (define cmp (emit-expr "call i1 @to_i1(%Val " p ")"))
+          (define next (if (= (length conds) 1) bl (next-l)))
+          (emit-line "br i1 " cmp ", label %" tl ", label %" next)
+
+          (emit-raw-line tl ":")
+          (define v (emit texpr env))
+          (emit-line "br label %" dl)
+          (define rest (cdr conds))
+          (loop
+            rest
+            next
+            (string-append phi "[ " v ", %" tl " ], " ))))))
+
+  (emit-raw-line bl ":")
+  (define bv (emit-expr "call %Val @make_bool_val(i1 0)"))
+  (emit-line "br label %" dl)
+
+  (set! phi (string-append phi "[ " bv ", %" bl " ]"))
+
+  (emit-raw-line dl ":")
+  (emit-expr phi))
+
 ;(define (emit-or))
 ;(define (emit-and))
 

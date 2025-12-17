@@ -63,3 +63,13 @@ a
 a
 (if #f (set! a "wrong") (set! a "right"))
 a
+
+(define a 0)
+
+(cond (#f (set! a 1))
+      (#f (set! a 2))
+      (#t (set! a 3)))
+
+a
+
+(cond (#f 1))
