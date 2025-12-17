@@ -86,12 +86,13 @@
 ;;; EMIT
 
 (define (emit sexpr env)
-  (cond ((boolean? sexpr) (emit-bool sexpr env))
-        ((number? sexpr) (emit-number sexpr env))
-        ((string? sexpr) (emit-string sexpr env))
-        ((symbol? sexpr) (emit-lookup-symbol sexpr env))
-        ((not (list? sexpr)) (error "invalid sexpr type" sexpr))
-        ((equal? (car sexpr) 'define) (emit-define sexpr env))
+  (cond ((boolean? sexpr)              (emit-bool sexpr env))
+        ((number? sexpr)               (emit-number sexpr env))
+        ((string? sexpr)               (emit-string sexpr env))
+        ((symbol? sexpr)               (emit-lookup-symbol sexpr env))
+        ((not (list? sexpr))           (error "invalid sexpr type" sexpr))
+        ((equal? (car sexpr) 'define)  (emit-set sexpr env))
+        ((equal? (car sexpr) 'set!)    (emit-set sexpr env))
         ;; ADD special forms!
         (#t (emit-call-func sexpr env))))
 
@@ -125,15 +126,14 @@
     (emit-define-func sexpr env)
     (emit-define-set sexpr env)))
 
-(define (emit-define-set sexpr env)
+(define (emit-set sexpr env)
   (let* ((d (lookup env (cadr sexpr)))
          (depth (car d))
          (offset (cadr d)))
     (define e (emit (caddr sexpr) env))
     (emit-line "call void @set(%Env %env, i64 " depth ", i64 " offset ", %Val " e ")")
     e))
-;(define (emit-set))
-;
+
 (define (emit-define-func) (error "not implemented"))
 ;(define (emit-lambda))
 ;(define (emit-let))

@@ -31,8 +31,12 @@ list
 a
 (define b (+ a 1))
 b
-;(set! a 2)
-;a ; want 2
+
+(define c a)
+(set! a 3)
+a
+c
+;a ; want 3
 ;b ; want 1
 
 
