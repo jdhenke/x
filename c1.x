@@ -90,3 +90,15 @@
   args)
 
 (foo #t "two" 3)
+
+(define (foo2 a . args)
+  args)
+
+(foo2 #t "two" 3)
+
+(define bar (lambda (a . args) args))
+(bar #t "two" 3)
+
+(define baz (lambda args args))
+(baz #t "two" 3)
+

@@ -156,8 +156,19 @@
     e))
 
 (define (emit-lambda sexpr env)
-  ; FIXME: pass named and rest
-  (emit-body (cddr sexpr) env #f (cadr sexpr) #f #f))
+  (define vars (cond ((list? (second sexpr))
+                      (let ()
+                        (define named (cadr sexpr))
+                        (define rest #f)
+                        (if (equal? (second (reverse named)) (symbol "."))
+                          (let ()
+                            (set! rest (first (reverse named)))
+                            (set! named (reverse (cddr (reverse named))))))
+                        (list named rest)))
+                     (#t (list (list) (second sexpr)))))
+  (define named (car vars))
+  (define rest (cadr vars))
+  (emit-body (cddr sexpr) env #f named rest #f))
 
 (define (emit-let sexpr env)
   (define self (if (list? (cadr sexpr)) #f (cadr sexpr)))
