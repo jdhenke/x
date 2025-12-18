@@ -174,14 +174,39 @@ define %Val @call_apply(%Env %env, %Args %args) {
   ret %Val %out
 }
 
-;;; TODO
-; bummer they are diff layouts in memory :/
 define %Args @list_to_args(%List* %lp) {
-  ; get length
-  ; allocate
-  ; iterate through and set each earg
-  ; ret args
-  ret %Args undef
+entry:
+  %n = call i64 @list_length(%List* %lp)
+  %args = call %Args @make_args(i64 %n)
+  br label %header
+header:
+  %i = phi i64 [ 0, %entry], [ %ni, %body ]
+  %head = phi %List* [ %lp, %entry], [ %cdr, %body]
+  %cmp = icmp slt i64 %i, %n
+  br i1 %cmp, label %body, label %done
+body:
+  %valp = getelementptr %List, %List* %head, i64 0, i32 0
+  %val = load %Val, %Val* %valp
+  call void @set_arg(%Args %args, i64 %i, %Val %val)
+  %cdrp = getelementptr %List, %List* %head, i64 0, i32 1
+  %cdr = load %List*, %List** %cdrp
+  %ni = add i64 %i, 1
+  br label %header
+done:
+  ret %Args %args
+}
+
+define i64 @list_length(%List* %lp) {
+  %cmp = icmp eq %List* %lp, null
+  br i1 %cmp, label %end, label %next
+end:
+  ret i64 0
+next:
+  %cdrp = getelementptr %List, %List* %lp, i64 0, i32 1
+  %cdr = load %List*, %List** %cdrp
+  %lr = call i64 @list_length(%List* %cdr)
+  %out = add i64 %lr, 1
+  ret i64 %out
 }
 
 define %Val @make_list_val(%List* %lp) {

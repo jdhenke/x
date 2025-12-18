@@ -3,6 +3,6 @@
 set -ex -o pipefail
 
 #cat x.x | ./x x.x
-cat xc.ll > /tmp/out.ll && ./scm xc.x < c1.x >> /tmp/out.ll
-clang -Wno-override-module -lgc -L/usr/local/lib /tmp/out.ll -o c1 && ./c1
+cat xc.ll > /tmp/out.ll && ./scm xc.x < c2.x >> /tmp/out.ll
+clang -Wno-override-module -lgc -L/usr/local/lib /tmp/out.ll -o c2 && ./c2
 
