@@ -477,9 +477,10 @@
 
 (define global (list
                  (list
-                   (list (symbol "list") 0)
-                   (list (symbol "+") 1)
-                   (list (symbol "apply") 2))
+                   (list (symbol "exit") 0)
+                   (list (symbol "list") 1)
+                   (list (symbol "+") 2)
+                   (list (symbol "apply") 3))
                   #f))
 
 (let ((all (let loop ((all (list)))

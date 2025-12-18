@@ -19,6 +19,9 @@
 declare i32 @printf(i8*, ...)
 declare i8* @GC_malloc(i64)
 
+;; syscalls
+declare void @exit(i32) noreturn
+
 define %Env @make_global_env() {
   ; create env with val in it
   %size = mul i64 64, 3
@@ -26,9 +29,10 @@ define %Env @make_global_env() {
   %vals = bitcast i8* %valsp to %Val*
 
   ; be sure to update size accordingly
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 0)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_plus, i64 1)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_apply, i64 2)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_exit, i64 0)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 1)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_plus, i64 2)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_apply, i64 3)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -101,6 +105,14 @@ define %Val* @empty_val_ptr() {
   %p = call i8* @GC_malloc(i64 %size)
   %vp = bitcast i8* %p to %Val*
   ret %Val* %vp
+}
+
+define %Val @call_exit(%Env %env, %Args %args) {
+  %v = call %Val @get_arg(%Args %args, i64 0)
+  %p = extractvalue %Val %v, 1
+  %c = ptrtoint i8* %p to i32
+  call void @exit(i32 %c)
+  ret %Val %v
 }
 
 define %Val @call_list(%Env %env, %Args %args) {
