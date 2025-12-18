@@ -21,13 +21,14 @@ declare i8* @GC_malloc(i64)
 
 define %Env @make_global_env() {
   ; create env with val in it
-  %size = mul i64 64, 2
+  %size = mul i64 64, 3
   %valsp = call i8* @GC_malloc(i64 %size) ; x2 element
   %vals = bitcast i8* %valsp to %Val*
 
   ; be sure to update size accordingly
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 0)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_plus, i64 1)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_apply, i64 2)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -158,6 +159,29 @@ body:
 exit:
   %out = call %Val @make_int_val(i64 %sum)
   ret %Val %out
+}
+
+define %Val @call_apply(%Env %env, %Args %args) {
+  %vs = extractvalue %Args %args, 0
+  %v1p = getelementptr %Val, %Val* %vs, i64 0
+  %fv = load %Val, %Val* %v1p
+  %v2p = getelementptr %Val, %Val* %vs, i64 1
+  %lv = load %Val, %Val* %v2p
+  %lvdp = extractvalue %Val %lv, 1
+  %lp = bitcast i8* %lvdp to %List*
+  %fargs = call %Args @list_to_args(%List* %lp)
+  %out = call %Val @call_func_val(%Val %fv, %Args %fargs)
+  ret %Val %out
+}
+
+;;; TODO
+; bummer they are diff layouts in memory :/
+define %Args @list_to_args(%List* %lp) {
+  ; get length
+  ; allocate
+  ; iterate through and set each earg
+  ; ret args
+  ret %Args undef
 }
 
 define %Val @make_list_val(%List* %lp) {
@@ -360,3 +384,4 @@ done:
   call void @set(%Env %env, i64 0, i64 %n, %Val %lv)
   ret void
 }
+

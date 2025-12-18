@@ -231,6 +231,8 @@
   (pretty-print v)
   (newline))
 
+(define (xlog v) #f)
+
 (let repl ()
   (let ((sexpr (read)))
     (if (eof? sexpr)

@@ -34,9 +34,12 @@
     -
     <
     >
+    >=
+    <=
     =
     append
     apply
+    assoc
     boolean?
     caadr
     caar
@@ -52,11 +55,14 @@
     cons
     curry
     display
+    filter
+    enumerate
     eof?
     equal?
     error
     find
     first
+    for-each
     length
     last
     list
@@ -65,6 +71,7 @@
     newline
     not
     null?
+    number->string
     number?
     peek-c
     pretty-print
@@ -76,6 +83,7 @@
     string
     string->number
     string-append
+    string-length
     string-number?
     string?
     sublist

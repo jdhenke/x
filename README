@@ -1,0 +1,1 @@
+cat xc.ll > /tmp/out.ll && cat x.x xc.x c1.x | ./scm >> /tmp/out.ll && clang -Wno-override-module -lgc -L/usr/local/lib /tmp/out.ll -o c2 && ./c2

@@ -91,15 +91,15 @@
         ((string? sexpr)               (emit-string sexpr env))
         ((symbol? sexpr)               (emit-lookup-symbol sexpr env))
         ((not (list? sexpr))           (error "invalid sexpr type" sexpr))
-        ((equal? (car sexpr) 'define)  (emit-define sexpr env))
-        ((equal? (car sexpr) 'set!)    (emit-set sexpr env))
-        ((equal? (car sexpr) 'lambda)  (emit-lambda sexpr env))
-        ((equal? (car sexpr) 'let)     (emit-let sexpr env))
-        ((equal? (car sexpr) 'let*)    (emit-let sexpr env))
-        ((equal? (car sexpr) 'if)      (emit-if sexpr env))
-        ((equal? (car sexpr) 'cond)    (emit-cond sexpr env))
-        ((equal? (car sexpr) 'or)      (emit-or sexpr env))
-        ((equal? (car sexpr) 'and)     (emit-and sexpr env))
+        ((equal? (car sexpr) (symbol "define"))  (emit-define sexpr env))
+        ((equal? (car sexpr) (symbol "set!"))    (emit-set sexpr env))
+        ((equal? (car sexpr) (symbol "lambda"))  (emit-lambda sexpr env))
+        ((equal? (car sexpr) (symbol "let"))     (emit-let sexpr env))
+        ((equal? (car sexpr) (symbol "let*"))    (emit-let sexpr env))
+        ((equal? (car sexpr) (symbol "if"))      (emit-if sexpr env))
+        ((equal? (car sexpr) (symbol "cond"))    (emit-cond sexpr env))
+        ((equal? (car sexpr) (symbol "or"))      (emit-or sexpr env))
+        ((equal? (car sexpr) (symbol "and"))     (emit-and sexpr env))
         (#t (emit-call-func sexpr env))))
 
 (define (emit-bool sexpr env)
@@ -219,7 +219,7 @@
                    (list (if (list? (cadr sexpr)) (caadr sexpr) (cadr sexpr))
                          (+ (length argdefs) i)))
                  (filter (lambda (sexpr)
-                           (and (list? sexpr) (equal? (car sexpr) 'define)))
+                           (and (list? sexpr) (equal? (car sexpr) (symbol "define"))))
                          body)))
 
   (define local (append argdefs bodydefs ))
@@ -292,7 +292,7 @@
     (define fv (emit f env))
     (emit-line "br label %" dl)
     (emit-raw-line dl ":")
-    (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl" ]")))
+    (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl " ]")))
 
 (define (emit-cond sexpr env)
   (define dl (next-l))
@@ -396,7 +396,7 @@
 (define (emit-main all env)
   (emit-raw-line "define i32 @main() {" )
   (emit-line "%env = call %Env @make_global_env()")
-  (define m (emit-body all env #f '() #f #t))
+  (define m (emit-body all env #f (list) #f #t))
   (define args (emit-expr "insertvalue %Args undef, i64 0, 1"))
   (emit-line "call %Val @call_func_val(%Val " m ", %Args " args ")")
   (emit-line "ret i32 0")
@@ -416,9 +416,9 @@
 
 ;;; ASSEMBLE
 
-(define constants '())
-(define scope '())
-(define scopes '())
+(define constants (list))
+(define scope (list))
+(define scopes (list))
 
 (define s 0)
 (define (next-s)
@@ -428,7 +428,7 @@
 ; returns pop
 (define (push-scope)
   (define last scope)
-  (set! scope '())
+  (set! scope (list))
   (lambda ()
     (set! scopes (cons (reverse scope) scopes))
     (set! scope last)))
@@ -482,7 +482,7 @@
                   #f))
 
 
-(let ((all (let loop ((all '()))
+(let ((all (let loop ((all (list)))
   (let ((sexpr (read)))
     (if (eof? sexpr)
       (reverse all)
