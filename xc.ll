@@ -21,6 +21,10 @@ declare i8* @GC_malloc(i64)
 
 ;; syscalls
 declare void @exit(i32) noreturn
+declare i32 @open(i8*, i32, ...)
+declare i64 @read(i32, i8*, i64)
+declare i64 @write(i32, i8*, i64)
+declare i32 @close(i32)
 
 define %Env @make_global_env() {
   ; create env with val in it
@@ -29,10 +33,15 @@ define %Env @make_global_env() {
   %vals = bitcast i8* %valsp to %Val*
 
   ; be sure to update size accordingly
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_exit, i64 0)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_exit, i64 0)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 1)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_plus, i64 2)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_apply, i64 3)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_open, i64 4)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_close, i64 5)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_write, i64 6)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_println, i64 7)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_read, i64 8)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -40,7 +49,6 @@ define %Env @make_global_env() {
 
   ; ret env
   ret %Env %e2
-
 }
 
 define void @store_native_func(%Val* %vals, %Val(%Env, %Args)* %f, i64 %i) {
@@ -107,13 +115,91 @@ define %Val* @empty_val_ptr() {
   ret %Val* %vp
 }
 
-define %Val @call_exit(%Env %env, %Args %args) {
+define %Val @sys_exit(%Env %env, %Args %args) {
   %v = call %Val @get_arg(%Args %args, i64 0)
   %p = extractvalue %Val %v, 1
   %c = ptrtoint i8* %p to i32
   call void @exit(i32 %c)
   ret %Val %v
 }
+
+define %Val @sys_open(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %v1p = extractvalue %Val %v1, 1
+  %v2v = call %Val @get_arg(%Args %args, i64 1)
+  %v2p = extractvalue %Val %v2v, 1
+  %v2i64 = ptrtoint i8* %v2p to i64
+  %v2i32 = trunc i64 %v2i64 to i32
+  %n = extractvalue %Args %args, 1
+  %cmp = icmp slt i64 %n, 3
+  br i1 %cmp, label %l2, label %l3
+l2:
+  %out2 = call i32 @open(i8* %v1p, i32 %v2i32)
+  %out2i64 = zext i32 %out2 to i64
+  %outv2 = call %Val @make_int_val(i64 %out2i64)
+  ret %Val %outv2
+l3:
+  %v3 = call %Val @get_arg(%Args %args, i64 2)
+  %v3p = extractvalue %Val %v3, 1
+  %v3i64 = ptrtoint i8* %v3p to i64
+  %v3i32 = trunc i64 %v3i64 to i32
+  %out3 = call i32 @open(i8* %v1p, i32 %v2i32, i32 %v3i32)
+  %out3i64 = zext i32 %out3 to i64
+  %outv3 = call %Val @make_int_val(i64 %out3i64)
+  ret %Val %outv3
+}
+
+define %Val @sys_write(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %fd = call i32 @val_to_i32(%Val %v1)
+  %v2 = call %Val @get_arg(%Args %args, i64 1)
+  %data = extractvalue %Val %v2, 1
+  %v3 = call %Val @get_arg(%Args %args, i64 2)
+  %n = call i64 @val_to_i64(%Val %v3)
+  %w = call i32 @write(i32 %fd, i8* %data, i64 %n)
+  %w64 = zext i32 %w to i64
+  %out = call %Val @make_int_val(i64 %w64)
+  ret %Val %out
+}
+
+define %Val @sys_read(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %fd = call i32 @val_to_i32(%Val %v1)
+  %v2 = call %Val @get_arg(%Args %args, i64 1)
+  %n = call i64 @val_to_i64(%Val %v2)
+  %size = add i64 %n, 1
+  %a = call i8* @GC_malloc(i64 %size)
+  %nr = call i32 @read(i32 %fd, i8* %a, i64 %n)
+  %nr64 = zext i32 %nr to i64
+  %bp = getelementptr i8, i8* %a, i64 %nr64
+  store i8 0, i8* %bp
+  %out = call %Val @make_str_val(i8* %a)
+  ret %Val %out
+}
+
+define i32 @val_to_i32(%Val %v) {
+  %x = call i64 @val_to_i64(%Val %v)
+  %out = trunc i64 %x to i32
+  ret i32 %out
+}
+
+define i64 @val_to_i64(%Val %v) {
+  %d = extractvalue %Val %v, 1
+  %i = ptrtoint i8* %d to i64
+  ret i64 %i
+}
+
+define %Val @sys_close(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %v1p = extractvalue %Val %v1, 1
+  %v1i64 = ptrtoint i8* %v1p to i64
+  %v1i32 = trunc i64 %v1i64 to i32
+  %out = call i32 @close(i32 %v1i32)
+  %out64 = zext i32 %out to i64
+  %outv = call %Val @make_int_val(i64 %out64)
+  ret %Val %outv
+}
+
 
 define %Val @call_list(%Env %env, %Args %args) {
   %vs = extractvalue %Args %args, 0
@@ -236,6 +322,12 @@ define %Val @call_func_val(%Val %v, %Args %args) {
   %e = extractvalue %Func %f, 1
   %out = call %Val %cf (%Env %e, %Args %args)
   ret %Val %out
+}
+
+define %Val @call_println(%Env %env, %Args %arg) {
+  %v = call %Val @get_arg(%Args %arg, i64 0)
+  call void @println(%Val %v)
+  ret %Val %v
 }
 
 define void @println(%Val %v) {

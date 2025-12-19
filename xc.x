@@ -480,7 +480,12 @@
                    (list (symbol "exit") 0)
                    (list (symbol "list") 1)
                    (list (symbol "+") 2)
-                   (list (symbol "apply") 3))
+                   (list (symbol "apply") 3)
+                   (list (symbol "open") 4)
+                   (list (symbol "close") 5)
+                   (list (symbol "write") 6)
+                   (list (symbol "println") 7)
+                   (list (symbol "read") 8))
                   #f))
 
 (let ((all (let loop ((all (list)))
