@@ -485,7 +485,11 @@
                    (list (symbol "close") 5)
                    (list (symbol "write") 6)
                    (list (symbol "println") 7)
-                   (list (symbol "read") 8))
+                   (list (symbol "read") 8)
+                   (list (symbol "fork") 9)
+                   (list (symbol "equal?") 10)
+                   (list (symbol "wait") 11)
+                   (list (symbol "execve") 12))
                   #f))
 
 (let ((all (let loop ((all (list)))

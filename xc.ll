@@ -21,10 +21,15 @@ declare i8* @GC_malloc(i64)
 
 ;; syscalls
 declare void @exit(i32) noreturn
+
 declare i32 @open(i8*, i32, ...)
 declare i64 @read(i32, i8*, i64)
 declare i64 @write(i32, i8*, i64)
 declare i32 @close(i32)
+
+declare i32 @fork()
+declare i32 @execve(i8*, i8**, i8**)
+declare i32 @waitpid(i32, i32*, i32)
 
 define %Env @make_global_env() {
   ; create env with val in it
@@ -42,6 +47,10 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_write, i64 6)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_println, i64 7)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_read, i64 8)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_fork, i64 9)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_equal, i64 10)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -175,6 +184,78 @@ define %Val @sys_read(%Env %env, %Args %args) {
   store i8 0, i8* %bp
   %out = call %Val @make_str_val(i8* %a)
   ret %Val %out
+}
+
+define %Val @sys_fork(%Env %env, %Args %args) {
+  %pid = call i32 @fork()
+  %pid64 = zext i32 %pid to i64
+  %out = call %Val @make_int_val(i64 %pid64)
+  ret %Val %out
+}
+
+define %Val @call_equal(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %d1 = extractvalue %Val %v1, 1
+  %v2 = call %Val @get_arg(%Args %args, i64 1)
+  %d2 = extractvalue %Val %v2, 1
+  %b1 = icmp eq i8* %d1, %d2
+  %out = call %Val @make_bool_val(i1 %b1)
+  ret %Val %out
+}
+
+define %Val @sys_waitpid(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %pid = call i32 @val_to_i32(%Val %v1)
+  %statusp = call i8* @GC_malloc(i64 32)
+  %status = bitcast i8* %statusp to i32*
+  %w = call i32 @waitpid(i32 %pid, i32* %status, i32 0)
+  %w64 = zext i32 %pid to i64
+  %out = call %Val @make_int_val(i64 %w64)
+  ret %Val %out
+}
+
+define %Val @sys_execve(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %path = extractvalue %Val %v1, 1
+  %v2 = call %Val @get_arg(%Args %args, i64 1)
+  %argsa = call i8** @to_str_array(%Val %v2)
+  %v3 = call %Val @get_arg(%Args %args, i64 2)
+  %enva = call i8** @to_str_array(%Val %v3)
+  %ex = call i32 @execve(i8* %path, i8** %argsa, i8** %enva)
+  %ex64 = zext i32 %ex to i64
+  %out = call %Val @make_int_val(i64 %ex64)
+
+  ret %Val %out
+}
+
+define i8** @to_str_array(%Val %v) {
+entry:
+  %p = extractvalue %Val %v, 1
+  %lp = bitcast i8* %p to %List*
+  %n = call i64 @list_length(%List* %lp)
+  %n1 = add i64 %n, 1
+  %size = mul i64 %n1, 64
+  %out = call i8** @GC_malloc(i64 %size)
+  br label %header
+header:
+  %head = phi %List* [ %lp, %entry], [ %cdr, %body ]
+  %i = phi i64 [ 0, %entry ], [ %ni, %body ]
+  %cmp = icmp eq %List* %head, null
+  br i1 %cmp, label %done, label %body
+body:
+  %vp = getelementptr %List, %List* %head, i64 0, i32 0
+  %elv = load %Val, %Val* %vp
+  %s = extractvalue %Val %elv, 1
+  %sp = getelementptr i8*, i8** %out, i64 %i
+  store i8* %s, i8** %sp
+  %cdrp = getelementptr %List, %List* %head, i64 0, i32 1
+  %cdr = load %List*, %List** %cdrp
+  %ni = add i64 %i, 1
+  br label %header
+done:
+  %tp = getelementptr i8*, i8** %out, i64 %n
+  store i8* null, i8** %tp
+  ret i8** %out
 }
 
 define i32 @val_to_i32(%Val %v) {
