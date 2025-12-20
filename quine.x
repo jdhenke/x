@@ -1,0 +1,10 @@
+(define prog
+'(lambda (sexpr)
+  (display "(define prog\n'")
+  (pretty-print sexpr)
+  (display ")")
+  (newline)
+  (pretty-print '((eval prog (interaction-environment)) prog))
+  (newline)
+  (eval sexpr (interaction-environment))))
+((eval prog (interaction-environment)) prog)
