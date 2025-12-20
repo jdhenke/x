@@ -1,0 +1,5 @@
+((lambda (f)
+   (pretty-print (f (unsyntax f)))
+   (newline))
+ (lambda (self-sexpr)
+   (list '(lambda (f) (pretty-print (f (unsyntax f))) (newline)) self-sexpr)))
