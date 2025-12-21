@@ -621,50 +621,6 @@ define %Val @call_string_append(%Env %env, %Args %args) {
   ret %Val %out
 }
 
-define %Val @call_append(%Env %env, %Args %args) {
-entry:
-  %v0 = call %Val @get_arg(%Args %args, i64 0)
-  %v1 = call %Val @get_arg(%Args %args, i64 1)
-  %l0p = extractvalue %Val %v0, 1
-  %l1p = extractvalue %Val %v1, 1
-  %l0 = bitcast i8* %l0p to %List*
-  %l1 = bitcast i8* %l1p to %List*
-
-  %s = icmp eq %List* %l0, null
-  br i1 %s, label %short, label %header
-
-short:
-  ret %Val %v1
-
-header:
-  %h = phi %List* [ %l0, %entry ], [ %cdr, %header ]
-  %newh = phi %List* [ null, %entry ], [%nexth, %header ]
-  %carp = getelementptr %List, %List* %h, i64 0, i32 0
-  %carv = load %Val, %Val* %carp
-
-  %size = ptrtoint %List* getelementptr (%List, %List* null, i64 1) to i64
-  %nextp = call i8* @GC_malloc(i64 %size)
-  %nexth = bitcast i8* %nextp to %List*
-  %nextl = insertvalue %List undef, %Val %carv, 0
-  %nextl2 = insertvalue %List %nextl, %List* null, 1
-  store %List %nextl2, %List* %nexth
-
-  ; collect a copy
-  %nexthcdrp = getelementptr %List, %List* %newh, i64 0, i32 1
-  store %List* %nexth, %List** %nexthcdrp
-
-  %hcdrp = getelementptr %List, %List* %h, i64 0, i32 1
-  %cdr = load %List*, %List** %hcdrp
-  %cmp = icmp eq %List* %cdr, null
-  br i1 %cmp, label %set, label %header
-
-set:
-  %cdrp = getelementptr %List, %List* %nexth, i64 0, i32 1
-  store %List* %l1, %List** %cdrp
-  %out = call %Val @make_list_val(%List* %nexth)
-  ret %Val %out
-}
-
 define %Val @call_car(%Env %env, %Args %args) {
   %v0 = call %Val @get_arg(%Args %args, i64 0)
   %lp = extractvalue %Val %v0, 1
