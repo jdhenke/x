@@ -489,7 +489,8 @@
                    (list (symbol "fork") 9)
                    (list (symbol "equal?") 10)
                    (list (symbol "wait") 11)
-                   (list (symbol "execve") 12))
+                   (list (symbol "execve") 12)
+                   (list (symbol "string-append") 13))
                   #f))
 
 (let ((all (let loop ((all (list)))

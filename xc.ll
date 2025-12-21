@@ -17,6 +17,9 @@
 @sp_str = unnamed_addr constant [2 x i8] c" \00"
 
 declare i32 @printf(i8*, ...)
+declare i8* @strlen(i8*)
+declare i8* @strcopy(i8*, i8*)
+declare i8* @strcat(i8*, i8*)
 declare i8* @GC_malloc(i64)
 
 ;; syscalls
@@ -51,6 +54,7 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_equal, i64 10)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_append, i64 13)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -595,3 +599,18 @@ done:
   ret void
 }
 
+define %Val @call_string_append(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %s0 = extractvalue %Val %v0, 1
+  %s1 = extractvalue %Val %v1, 1
+  %l1 = call i64 @strlen(i8* %s1)
+  %l2 = call i64 @strlen(i8* %s2)
+  %t = add i64 %l1, %l2
+  %size = add i64 1, %t
+  %p = call i8* @GC_malloc(i64 %size)
+  call i8* @strcopy(i8* %p, i8* %s0)
+  call i8* @strcat(i8* %p, i8* %s1)
+  %out = call %Val @make_str_val(i8* %p)
+  ret %Val %out
+}
