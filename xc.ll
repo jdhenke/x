@@ -18,7 +18,7 @@
 
 declare i32 @printf(i8*, ...)
 declare i8* @strlen(i8*)
-declare i8* @strcopy(i8*, i8*)
+declare i8* @strcpy(i8*, i8*)
 declare i8* @strcat(i8*, i8*)
 declare i8* @GC_malloc(i64)
 
@@ -55,6 +55,13 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_append, i64 13)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_append, i64 14)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_car, i64 15)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cdr, i64 16)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cons, i64 17)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_nullq, i64 18)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_slt, i64 19)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_sub, i64 20)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -604,13 +611,102 @@ define %Val @call_string_append(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 1)
   %s0 = extractvalue %Val %v0, 1
   %s1 = extractvalue %Val %v1, 1
-  %l1 = call i64 @strlen(i8* %s1)
-  %l2 = call i64 @strlen(i8* %s2)
+  %l1 = call i64 @strlen(i8* %s0)
+  %l2 = call i64 @strlen(i8* %s1)
   %t = add i64 %l1, %l2
   %size = add i64 1, %t
   %p = call i8* @GC_malloc(i64 %size)
-  call i8* @strcopy(i8* %p, i8* %s0)
+  call i8* @strcpy(i8* %p, i8* %s0)
   call i8* @strcat(i8* %p, i8* %s1)
   %out = call %Val @make_str_val(i8* %p)
+  ret %Val %out
+}
+
+define %Val @call_append(%Env %env, %Args %args) {
+entry:
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %l0p = extractvalue %Val %v0, 1
+  %l1p = extractvalue %Val %v1, 1
+  %l0 = bitcast i8* %l0p to %List*
+  %l1 = bitcast i8* %l1p to %List*
+
+  %s = icmp eq %List* %l0, null
+  br i1 %s, label %short, label %header
+
+short:
+  ret %Val %v1
+
+header:
+  %h = phi %List* [ %l0, %entry ], [ %cdr, %header ]
+  %hcdrp = getelementptr %List, %List* %h, i64 0, i32 1
+  %cdr = load %List*, %List** %hcdrp
+  %cmp = icmp eq %List* %cdr, null
+  br i1 %cmp, label %set, label %header
+
+set:
+  %cdrp = getelementptr %List, %List* %h, i64 0, i32 1
+  store %List* %l1, %List** %cdrp
+  ret %Val %v0
+}
+
+define %Val @call_car(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %lp = extractvalue %Val %v0, 1
+  %l = bitcast i8* %lp to %List*
+  %lv = load %List, %List* %l
+  %car = extractvalue %List %lv, 0
+  ret %Val %car
+}
+
+define %Val @call_cdr(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %lp = extractvalue %Val %v0, 1
+  %l = bitcast i8* %lp to %List*
+  %lv = load %List, %List* %l
+  %cdr = extractvalue %List %lv, 1
+  %out = call %Val @make_list_val(%List* %cdr)
+  ret %Val %out
+}
+
+define %Val @call_cons(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %l1p = extractvalue %Val %v1, 1
+  %l1 = bitcast i8* %l1p to %List*
+  %h = call %List* @cons(%Val %v0, %List* %l1)
+  %out = call %Val @make_list_val(%List* %h)
+  ret %Val %out
+}
+
+define %Val @call_nullq(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %d = extractvalue %Val %v0, 1
+  %cmp = icmp eq i8* %d, null
+  %out = call %Val @make_bool_val(i1 %cmp)
+  ret %Val %out
+}
+
+define %Val @call_slt(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %p0 = extractvalue %Val %v0, 1
+  %p1 = extractvalue %Val %v1, 1
+  %i0 = ptrtoint i8* %p0 to i64
+  %i1 = ptrtoint i8* %p1 to i64
+  %cmp = icmp slt i64 %i0, %i1
+  %out = call %Val @make_bool_val(i1 %cmp)
+  ret %Val %out
+}
+
+define %Val @call_sub(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %p0 = extractvalue %Val %v0, 1
+  %p1 = extractvalue %Val %v1, 1
+  %i0 = ptrtoint i8* %p0 to i64
+  %i1 = ptrtoint i8* %p1 to i64
+  %diff = sub i64 %i0, %i1
+  %out = call %Val @make_int_val(i64 %diff)
   ret %Val %out
 }

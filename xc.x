@@ -173,7 +173,7 @@
   (define self (if (list? (cadr sexpr)) #f (cadr sexpr)))
   (define argdefs ((if self caddr cadr) sexpr))
   (define argnames (map car argdefs))
-  (define bv (emit-body (cddr sexpr) env self argnames #f #f))
+  (define bv (emit-body ((if self cdddr cddr) sexpr) env self argnames #f #f))
   (define initargs (emit-let-args argdefs env))
   (emit-expr "call %Val @call_func_val(%Val " bv ", %Args " initargs ")"))
 
@@ -207,7 +207,6 @@
   (emit-expr "call %Args " s "(%Env %env)"))
 
 (define (emit-body body env self named rest print?)
-
   (define argdefs (enumerate
                     (lambda (i arg) (list arg i))
                     named))
@@ -223,7 +222,6 @@
                          body)))
 
   (define local (append argdefs bodydefs ))
-
 
   ; must be updated with f val when constructed
   (define penv (if self (list (list (list self 0)) env) env))
@@ -278,7 +276,7 @@
 (define (emit-if sexpr env)
   (let ((pred (cadr sexpr))
         (t (caddr sexpr))
-        (f (cadddr sexpr)))
+        (f (if (> (length sexpr) 3) (cadddr sexpr) #f)))
     (define p (emit pred env))
     (define cmp (emit-expr "call i1 @to_i1(%Val " p ")"))
     (define tl (next-l))
@@ -490,7 +488,14 @@
                    (list (symbol "equal?") 10)
                    (list (symbol "wait") 11)
                    (list (symbol "execve") 12)
-                   (list (symbol "string-append") 13))
+                   (list (symbol "string-append") 13)
+                   (list (symbol "append") 14)
+                   (list (symbol "car") 15)
+                   (list (symbol "cdr") 16)
+                   (list (symbol "cons") 17)
+                   (list (symbol "null?") 18)
+                   (list (symbol "<") 19)
+                   (list (symbol "-") 20))
                   #f))
 
 (let ((all (let loop ((all (list)))
