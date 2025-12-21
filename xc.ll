@@ -36,8 +36,8 @@ declare i32 @waitpid(i32, i32*, i32)
 
 define %Env @make_global_env() {
   ; create env with val in it
-  %size = mul i64 64, 3
-  %valsp = call i8* @GC_malloc(i64 %size) ; x2 element
+  %size = mul i64 64, 20
+  %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
   ; be sure to update size accordingly
@@ -55,13 +55,12 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_append, i64 13)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_append, i64 14)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_car, i64 15)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cdr, i64 16)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cons, i64 17)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_nullq, i64 18)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_slt, i64 19)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_sub, i64 20)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_car, i64 14)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cdr, i64 15)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cons, i64 16)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_nullq, i64 17)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_slt, i64 18)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_sub, i64 19)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -639,15 +638,31 @@ short:
 
 header:
   %h = phi %List* [ %l0, %entry ], [ %cdr, %header ]
+  %newh = phi %List* [ null, %entry ], [%nexth, %header ]
+  %carp = getelementptr %List, %List* %h, i64 0, i32 0
+  %carv = load %Val, %Val* %carp
+
+  %size = ptrtoint %List* getelementptr (%List, %List* null, i64 1) to i64
+  %nextp = call i8* @GC_malloc(i64 %size)
+  %nexth = bitcast i8* %nextp to %List*
+  %nextl = insertvalue %List undef, %Val %carv, 0
+  %nextl2 = insertvalue %List %nextl, %List* null, 1
+  store %List %nextl2, %List* %nexth
+
+  ; collect a copy
+  %nexthcdrp = getelementptr %List, %List* %newh, i64 0, i32 1
+  store %List* %nexth, %List** %nexthcdrp
+
   %hcdrp = getelementptr %List, %List* %h, i64 0, i32 1
   %cdr = load %List*, %List** %hcdrp
   %cmp = icmp eq %List* %cdr, null
   br i1 %cmp, label %set, label %header
 
 set:
-  %cdrp = getelementptr %List, %List* %h, i64 0, i32 1
+  %cdrp = getelementptr %List, %List* %nexth, i64 0, i32 1
   store %List* %l1, %List** %cdrp
-  ret %Val %v0
+  %out = call %Val @make_list_val(%List* %nexth)
+  ret %Val %out
 }
 
 define %Val @call_car(%Env %env, %Args %args) {
