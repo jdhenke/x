@@ -170,6 +170,15 @@
 (test 8 (fib 6))
 (test 12586269025 (fib 50))
 
+
+; tail call optimization
+(define (count-to-infinity n)
+  (if (equal? n 0)
+      "done"
+      (count-to-infinity (- n 1))))
+(count-to-infinity 100000)
+
+
 ;(let ((fd (open "/tmp/foo.txt" 1537 438)))
 ;  (write fd "bar" 3)
 ;  (close fd))
@@ -195,3 +204,4 @@
   (let ()
     (println "FAIL")
     (sys/exit 1)))
+

@@ -497,7 +497,7 @@ define %Val @call_func_val(%Val %v, %Args %args) {
   %f = load %Func, %Func* %fp
   %cf = extractvalue %Func %f, 0
   %e = extractvalue %Func %f, 1
-  %out = call %Val %cf (%Env %e, %Args %args)
+  %out = tail call %Val %cf (%Env %e, %Args %args)
   ret %Val %out
 }
 

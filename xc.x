@@ -125,7 +125,7 @@
   (enumerate
     (lambda (i arg) (emit-line "call void @set_arg(%Args " args ", i64 " i ", %Val " arg ")"))
     argexps)
-  (emit-expr "call %Val @call_func_val(%Val " fexp ", %Args " args ")"))
+  (emit-expr "tail call %Val @call_func_val(%Val " fexp ", %Args " args ")"))
 
 (define (emit-define sexpr env)
   (if (list? (cadr sexpr))
@@ -175,7 +175,7 @@
   (define argnames (map car argdefs))
   (define bv (emit-body ((if self cdddr cddr) sexpr) env self argnames #f #f))
   (define initargs (emit-let-args argdefs env))
-  (emit-expr "call %Val @call_func_val(%Val " bv ", %Args " initargs ")"))
+  (emit-expr "tail call %Val @call_func_val(%Val " bv ", %Args " initargs ")"))
 
 (define (emit-let-args argdefs env)
   (define s (string-append "@s" (number->string (next-s))))
@@ -288,16 +288,14 @@
     (define cmp (emit-expr "call i1 @to_i1(%Val " p ")"))
     (define tl (next-l))
     (define fl (next-l))
-    (define dl (next-l))
     (emit-line "br i1 " cmp ", label %" tl ", label %" fl)
+
     (emit-raw-line tl ":")
     (define tv (emit t env))
-    (emit-line "br label %" dl)
+    (emit-line "ret %Val " tv)
+
     (emit-raw-line fl ":")
-    (define fv (emit f env))
-    (emit-line "br label %" dl)
-    (emit-raw-line dl ":")
-    (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl " ]")))
+    (emit f env))) ; emit-in-func adds return in this case
 
 (define (emit-in-func f)
     (define pop (push-scope))
@@ -310,7 +308,7 @@
     (emit-raw-line "}")
     (pop)
 
-    (emit-expr "call %Val " s "(%Env %env)"))
+    (emit-expr "tail call %Val " s "(%Env %env)"))
 
 (define (emit-cond sexpr env)
   (emit-in-func
