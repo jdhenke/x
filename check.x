@@ -82,7 +82,7 @@
 (if #f (set! a "wrong2") (set! a "right2"))
 (test "right2" a)
 
-;; cond
+; cond
 (define a 0)
 
 (cond (#f (set! a 1))
@@ -92,6 +92,17 @@
 (test 3 a)
 
 (test #f (cond (#f 1)))
+
+; nested
+(test 4
+      (if #f
+        (if #t 1 2)
+        (if #f 3 4)))
+
+(test 4 (cond (#f 1)
+              (#f 2)
+              (#t (cond (#f 3)
+                        (#t 4)))))
 
 ; or
 (define z 0)
