@@ -8,7 +8,8 @@
 @nl_str = unnamed_addr constant [2 x i8] c"\0A\00"
 
 @int_str = unnamed_addr constant [3 x i8] c"%d\00"
-@str_str = unnamed_addr constant [5 x i8] c"\22%s\22\00"
+@str_str = unnamed_addr constant [3 x i8] c"%s\00"
+@sym_str = unnamed_addr constant [3 x i8] c"%s\00"
 @unk_str = unnamed_addr constant [10 x i8] c"unk %d %x\00"
 @func_str = unnamed_addr constant [6 x i8] c"λ %x\00"
 
@@ -22,6 +23,9 @@ declare i8* @strcpy(i8*, i8*)
 declare i8* @strcat(i8*, i8*)
 declare i8* @stpcpy(i8*, i8*)
 declare i32 @strcmp(i8*, i8*)
+declare i32 @sprintf(i8*, i8*, ...)
+declare i64 @atoll(i8*)
+
 declare i8* @GC_malloc(i64)
 
 ;; syscalls
@@ -38,7 +42,7 @@ declare i32 @waitpid(i32, i32*, i32)
 
 define %Env @make_global_env() {
   ; create env with val in it
-  %size = mul i64 64, 20
+  %size = mul i64 64, 35
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
@@ -63,6 +67,21 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_nullq, i64 17)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_slt, i64 18)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_sub, i64 19)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_atoll, i64 20)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_strtoll, i64 21)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_symbol, i64 22)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_boolean, i64 23)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_integer, i64 24)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_string, i64 25)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_list, i64 26)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_symbol, i64 27)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_function, i64 28)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list_length, i64 29)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_itoa, i64 30)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_length, i64 31)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_print, i64 32)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_newline, i64 33)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_list, i64 34)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -229,6 +248,7 @@ data:
     i8 2, label %is_direct
     i8 3, label %is_str
     i8 4, label %is_list
+    i8 5, label %is_str
     i8 6, label %is_direct
   ]
 is_direct:
@@ -494,9 +514,23 @@ define void @println(%Val %v) {
   ret void
 }
 
+define %Val @call_print(%Env %env, %Args %arg) {
+  %v = call %Val @get_arg(%Args %arg, i64 0)
+  call void @print(%Val %v)
+  ret %Val %v
+}
+
+define %Val @call_newline(%Env %env, %Args %arg) {
+  %nl = getelementptr inbounds [2 x i8], [2 x i8]* @nl_str, i64 0, i64 0
+  call i32 (i8*, ...) @printf(i8* %nl)
+  %out = call %Val @make_bool_val(i1 0)
+  ret %Val %out
+}
+
 define void @print(%Val %v) {
   %is = getelementptr inbounds [3 x i8], [3 x i8]* @int_str, i64 0, i64 0
-  %ss = getelementptr inbounds [5 x i8], [5 x i8]* @str_str, i64 0, i64 0
+  %ss = getelementptr inbounds [3 x i8], [3 x i8]* @str_str, i64 0, i64 0
+  %ys = getelementptr inbounds [3 x i8], [3 x i8]* @sym_str, i64 0, i64 0
   %us = getelementptr inbounds [10 x i8], [10 x i8]* @unk_str, i64 0, i64 0
   %fs = getelementptr inbounds [6 x i8], [6 x i8]* @func_str, i64 0, i64 0
 
@@ -510,6 +544,7 @@ define void @print(%Val %v) {
     i8 2, label %is_int
     i8 3, label %is_str
     i8 4, label %is_list
+    i8 5, label %is_symbol
     i8 6, label %is_func
   ]
   ; symb
@@ -526,6 +561,10 @@ is_int:
 
 is_str:
   call i32 (i8*, ...) @printf(i8* %ss, i8* %x)
+  ret void
+
+is_symbol:
+  call i32 (i8*, ...) @printf(i8* %ys, i8* %x)
   ret void
 
 is_list:
@@ -775,4 +814,128 @@ define %Val @call_sub(%Env %env, %Args %args) {
   %diff = sub i64 %i0, %i1
   %out = call %Val @make_int_val(i64 %diff)
   ret %Val %out
+}
+
+define %Val @call_atoll(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %s = extractvalue %Val %v0, 1
+  %n = call i64 @atoll(i8* %s)
+  %out = call %Val @make_int_val(i64 %n)
+  ret %Val %out
+}
+
+declare i64 @strtoll(i8*, i8**, i32)
+
+define %Val @call_strtoll(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %str = extractvalue %Val %v0, 1
+  %endptr_alloc = alloca i8*
+  %num = call i64 @strtoll(i8* %str, i8** %endptr_alloc, i32 10)
+  %endptr = load i8*, i8** %endptr_alloc
+  %end_char = load i8, i8* %endptr
+  %is_valid = icmp eq i8 %end_char, 0
+  %out = call %Val @make_bool_val(i1 %is_valid)
+  ret %Val %out
+}
+
+define %Val @call_symbol(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %str = extractvalue %Val %v0, 1
+  %out1 = insertvalue %Val undef, i8 5, 0
+  %out2 = insertvalue %Val %out1, i8* %str, 1
+  ret %Val %out2
+}
+
+define %Val @is_boolean(%Env %env, %Args %args) {
+  %out = call %Val @is_type(%Args %args, i8 1)
+  ret %Val %out
+}
+
+define %Val @is_integer(%Env %env, %Args %args) {
+  %out = call %Val @is_type(%Args %args, i8 2)
+  ret %Val %out
+}
+
+define %Val @is_string(%Env %env, %Args %args) {
+  %out = call %Val @is_type(%Args %args, i8 3)
+  ret %Val %out
+}
+
+define %Val @is_list(%Env %env, %Args %args) {
+  %out = call %Val @is_type(%Args %args, i8 4)
+  ret %Val %out
+}
+
+define %Val @is_symbol(%Env %env, %Args %args) {
+  %out = call %Val @is_type(%Args %args, i8 5)
+  ret %Val %out
+}
+
+define %Val @is_function(%Env %env, %Args %args) {
+  %out = call %Val @is_type(%Args %args, i8 6)
+  ret %Val %out
+}
+
+define %Val @is_type(%Args %args, i8 %type) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %vt = extractvalue %Val %v0, 0
+  %cmp = icmp eq i8 %type, %vt
+  %out = call %Val @make_bool_val(i1 %cmp)
+  ret %Val %out
+}
+
+define %Val @call_list_length(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %d = extractvalue %Val %v0, 1
+  %l = bitcast i8* %d to %List*
+  %n = call i64 @list_length(%List* %l)
+  %out = call %Val @make_int_val(i64 %n)
+  ret %Val %out
+}
+
+define %Val @call_itoa(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %d = extractvalue %Val %v0, 1
+  %n = ptrtoint i8* %d to i64
+  %dst = call i8* @GC_malloc(i64 168)
+  %fmt = getelementptr [3 x i8], [3 x i8]* @int_str, i32 0, i32 0
+
+  call i32 @sprintf(i8* %dst, i8* %fmt, i64 %n)
+  %out = call %Val @make_str_val(i8* %dst)
+  ret %Val %out
+}
+
+define %Val @call_string_length(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %d = extractvalue %Val %v0, 1
+  %n = call i64 @strlen(i8* %d)
+  %out = call %Val @make_int_val(i64 %n)
+  ret %Val %out
+}
+
+define %Val @call_string_list(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %s = extractvalue %Val %v0, 1
+  %l = call %List* @append_string_list(i8* %s)
+  %out = call %Val @make_list_val(%List* %l)
+  ret %Val %out
+}
+
+define %List* @append_string_list(i8* %s) {
+  %b = load i8, i8* %s
+  %cmp = icmp eq i8 %b, 0
+  br i1 %cmp, label %end, label %more
+end:
+  ret %List* null
+
+more:
+  %c = call i8* @GC_malloc(i64 16) ; 1 byte + null
+  store i8 %b, i8* %c
+  %np = getelementptr i8, i8* %c, i64 1
+  store i8 0, i8* %np
+  %v = call %Val @make_str_val(i8* %c)
+  %ns = getelementptr i8, i8* %s, i64 1
+  %tail = call %List* @append_string_list(i8* %ns)
+  %out = call %List* @cons(%Val %v, %List* %tail)
+  ret %List* %out
 }

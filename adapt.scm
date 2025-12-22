@@ -27,6 +27,9 @@
       (reverse out)
       (loop (+ i 1) (cdr l) (cons (f i (car l)) out)))))
 
+(define (string-list s)
+  (map (lambda (c) (list->string (list c))) (string->list s)))
+
 
 (define native-funcs
   '(

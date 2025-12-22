@@ -194,4 +194,4 @@
   (println "PASS")
   (let ()
     (println "FAIL")
-    (exit 1)))
+    (sys/exit 1)))
