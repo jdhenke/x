@@ -7,7 +7,7 @@
 
 @nl_str = unnamed_addr constant [2 x i8] c"\0A\00"
 
-@int_str = unnamed_addr constant [3 x i8] c"%d\00"
+@int_str = unnamed_addr constant [5 x i8] c"%lld\00"
 @str_str = unnamed_addr constant [3 x i8] c"%s\00"
 @sym_str = unnamed_addr constant [3 x i8] c"%s\00"
 @unk_str = unnamed_addr constant [10 x i8] c"unk %d %x\00"
@@ -528,7 +528,7 @@ define %Val @call_newline(%Env %env, %Args %arg) {
 }
 
 define void @print(%Val %v) {
-  %is = getelementptr inbounds [3 x i8], [3 x i8]* @int_str, i64 0, i64 0
+  %is = getelementptr inbounds [5 x i8], [5 x i8]* @int_str, i64 0, i64 0
   %ss = getelementptr inbounds [3 x i8], [3 x i8]* @str_str, i64 0, i64 0
   %ys = getelementptr inbounds [3 x i8], [3 x i8]* @sym_str, i64 0, i64 0
   %us = getelementptr inbounds [10 x i8], [10 x i8]* @unk_str, i64 0, i64 0
@@ -898,7 +898,7 @@ define %Val @call_itoa(%Env %env, %Args %args) {
   %d = extractvalue %Val %v0, 1
   %n = ptrtoint i8* %d to i64
   %dst = call i8* @GC_malloc(i64 168)
-  %fmt = getelementptr [3 x i8], [3 x i8]* @int_str, i32 0, i32 0
+  %fmt = getelementptr [5 x i8], [5 x i8]* @int_str, i32 0, i32 0
 
   call i32 @sprintf(i8* %dst, i8* %fmt, i64 %n)
   %out = call %Val @make_str_val(i8* %dst)
