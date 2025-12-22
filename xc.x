@@ -279,6 +279,10 @@
   (let ((pred (cadr sexpr))
         (t (caddr sexpr))
         (f (if (> (length sexpr) 3) (cadddr sexpr) #f)))
+    (define pop (push-scope))
+
+    (define s (string-append "@s" (number->string (next-s))))
+    (emit-raw-line "define %Val " s "(%Env %env, %Args %args) {")
     (define p (emit pred env))
     (define cmp (emit-expr "call i1 @to_i1(%Val " p ")"))
     (define tl (next-l))
@@ -292,7 +296,15 @@
     (define fv (emit f env))
     (emit-line "br label %" dl)
     (emit-raw-line dl ":")
-    (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl " ]")))
+    (define out (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl " ]"))
+    (emit-line "ret %Val " out)
+    (emit-raw-line "}")
+
+    (pop)
+
+    (emit-expr "call %Val " s "(%Env %env)")))
+    ; call
+
 
 (define (emit-cond sexpr env)
   (define dl (next-l))

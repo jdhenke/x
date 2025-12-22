@@ -206,18 +206,23 @@ define %Val @sys_fork(%Env %env, %Args %args) {
 }
 
 define %Val @call_equal(%Env %env, %Args %args) {
-entry:
   %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %v2 = call %Val @get_arg(%Args %args, i64 1)
+  %cmp = call i1 @val_equal(%Val %v1, %Val %v2)
+  %out = call %Val @make_bool_val(i1 %cmp)
+  ret %Val %out
+}
+
+define i1 @val_equal(%Val %v1, %Val %v2) {
+entry:
   %t1 = extractvalue %Val %v1, 0
   %d1 = extractvalue %Val %v1, 1
-  %v2 = call %Val @get_arg(%Args %args, i64 1)
   %t2 = extractvalue %Val %v2, 0
   %d2 = extractvalue %Val %v2, 1
   %tcmp = icmp eq i8 %t1, %t2
   br i1 %tcmp, label %data, label %false
 false:
-  %outf = call %Val @make_bool_val(i1 0)
-  ret %Val %outf
+  ret i1 0
 data:
   switch i8 %t1, label %false [
     i8 1, label %is_direct
@@ -234,12 +239,44 @@ is_str:
   %cmpi = icmp eq i32 %cmpsi, 0
   br label %done
 is_list:
-  %cmpl = add i1 0, 0 ;; FIXME
+  %l1 = bitcast i8* %d1 to %List*
+  %l2 = bitcast i8* %d2 to %List*
+  %cmpl = call i1 @list_equal(%List* %l1, %List* %l2)
   br label %done
 done:
-  %b1 = phi i1 [%cmpd, %is_direct ], [ %cmpi, %is_str ], [ %cmpl, %is_list ]
-  %out = call %Val @make_bool_val(i1 %b1)
-  ret %Val %out
+  %b1 = phi i1 [ %cmpd, %is_direct ], [ %cmpi, %is_str ], [ %cmpl, %is_list ]
+  ret i1 %b1
+}
+
+define i1 @list_equal(%List* %l1, %List* %l2) {
+  ; if one is null, ret t or false 
+  %l1n = icmp eq %List* %l1, null
+  %l2n = icmp eq %List* %l2, null
+  %onen = or i1 %l1n, %l2n
+  br i1 %onen, label %comp, label %val
+
+comp:
+  %ncmp = and i1 %l1n, %l2n
+  ret i1 %ncmp
+
+val:
+  %v1p = getelementptr %List, %List* %l1, i64 0, i32 0
+  %v1 = load %Val, %Val* %v1p
+  %v2p = getelementptr %List, %List* %l2, i64 0, i32 0
+  %v2 = load %Val, %Val* %v2p
+  %vcmp = call i1 @val_equal(%Val %v1, %Val %v2)
+  br i1 %vcmp, label %next, label %false
+
+false:
+  ret i1 0
+
+next:
+  %cdr1p = getelementptr %List, %List* %l1, i64 0, i32 1
+  %cdr2p = getelementptr %List, %List* %l2, i64 0, i32 1
+  %cdr1 = load %List*, %List** %cdr1p
+  %cdr2 = load %List*, %List** %cdr2p
+  %cdrcmp = call i1 @list_equal(%List* %cdr1, %List* %cdr2)
+  ret i1 %cdrcmp
 }
 
 define %Val @sys_waitpid(%Env %env, %Args %args) {
@@ -601,8 +638,12 @@ define %Env @sub_env(%Env %env, i64 %n) {
 }
 
 define i1 @to_i1(%Val %v) {
+  %t = extractvalue %Val %v, 0
   %d = extractvalue %Val %v, 1
-  %out = ptrtoint i8* %d to i1
+  %isnotbool = icmp ne i8 %t, 1
+  %db = ptrtoint i8* %d to i1
+  %isnotfalse = icmp ne i1 %db, 0
+  %out = or i1 %isnotbool, %isnotfalse
   ret i1 %out
 }
 
