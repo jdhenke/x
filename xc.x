@@ -178,13 +178,6 @@
   (emit-expr "call %Val @call_func_val(%Val " bv ", %Args " initargs ")"))
 
 (define (emit-let-args argdefs env)
-  (define cenv
-    (list 
-      (enumerate
-        (lambda (i argdef)
-          (list (car argdef) i))
-        argdefs)
-      env))
   (define s (string-append "@s" (number->string (next-s))))
 
   (define pop (push-scope))
@@ -195,6 +188,15 @@
 
   (enumerate
     (lambda (i argdef)
+      ; incrementally add to cenv as each argdef is defined
+      (define cenv (list 
+        (filter
+          (lambda (e) (< (cadr e) i))
+          (enumerate
+            (lambda (i argdef)
+              (list (car argdef) i))
+            argdefs))
+        env))
       (define argv (emit (cadr argdef) cenv))
       (emit-line "call void @set(%Env %env, i64 0, i64 " i ", %Val " argv ")")
       (emit-line "call void @set_arg(%Args " args ", i64 " i ", %Val " argv ")"))
@@ -394,7 +396,7 @@
 (define (emit-main all env)
   (emit-raw-line "define i32 @main() {" )
   (emit-line "%env = call %Env @make_global_env()")
-  (define m (emit-body all env #f (list) #f #t))
+  (define m (emit-body all env #f (list) #f #f))
   (define args (emit-expr "insertvalue %Args undef, i64 0, 1"))
   (emit-line "call %Val @call_func_val(%Val " m ", %Args " args ")")
   (emit-line "ret i32 0")

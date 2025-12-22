@@ -17,9 +17,11 @@
 @sp_str = unnamed_addr constant [2 x i8] c" \00"
 
 declare i32 @printf(i8*, ...)
-declare i8* @strlen(i8*)
+declare i64 @strlen(i8*)
 declare i8* @strcpy(i8*, i8*)
 declare i8* @strcat(i8*, i8*)
+declare i8* @stpcpy(i8*, i8*)
+declare i32 @strcmp(i8*, i8*)
 declare i8* @GC_malloc(i64)
 
 ;; syscalls
@@ -204,11 +206,38 @@ define %Val @sys_fork(%Env %env, %Args %args) {
 }
 
 define %Val @call_equal(%Env %env, %Args %args) {
+entry:
   %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %t1 = extractvalue %Val %v1, 0
   %d1 = extractvalue %Val %v1, 1
   %v2 = call %Val @get_arg(%Args %args, i64 1)
+  %t2 = extractvalue %Val %v2, 0
   %d2 = extractvalue %Val %v2, 1
-  %b1 = icmp eq i8* %d1, %d2
+  %tcmp = icmp eq i8 %t1, %t2
+  br i1 %tcmp, label %data, label %false
+false:
+  %outf = call %Val @make_bool_val(i1 0)
+  ret %Val %outf
+data:
+  switch i8 %t1, label %false [
+    i8 1, label %is_direct
+    i8 2, label %is_direct
+    i8 3, label %is_str
+    i8 4, label %is_list
+    i8 6, label %is_direct
+  ]
+is_direct:
+  %cmpd = icmp eq i8* %d1, %d2
+  br label %done
+is_str:
+  %cmpsi = call i32 @strcmp(i8* %d1, i8* %d2)
+  %cmpi = icmp eq i32 %cmpsi, 0
+  br label %done
+is_list:
+  %cmpl = add i1 0, 0 ;; FIXME
+  br label %done
+done:
+  %b1 = phi i1 [%cmpd, %is_direct ], [ %cmpi, %is_str ], [ %cmpl, %is_list ]
   %out = call %Val @make_bool_val(i1 %b1)
   ret %Val %out
 }
@@ -447,7 +476,6 @@ define void @print(%Val %v) {
     i8 6, label %is_func
   ]
   ; symb
-  ; list
 
 is_bool:
   %b = ptrtoint i8* %x to i1
@@ -606,18 +634,44 @@ done:
 }
 
 define %Val @call_string_append(%Env %env, %Args %args) {
-  %v0 = call %Val @get_arg(%Args %args, i64 0)
-  %v1 = call %Val @get_arg(%Args %args, i64 1)
-  %s0 = extractvalue %Val %v0, 1
-  %s1 = extractvalue %Val %v1, 1
-  %l1 = call i64 @strlen(i8* %s0)
-  %l2 = call i64 @strlen(i8* %s1)
-  %t = add i64 %l1, %l2
-  %size = add i64 1, %t
-  %p = call i8* @GC_malloc(i64 %size)
-  call i8* @strcpy(i8* %p, i8* %s0)
-  call i8* @strcat(i8* %p, i8* %s1)
-  %out = call %Val @make_str_val(i8* %p)
+entry:
+  %n = extractvalue %Args %args, 1
+  br label %length_header
+
+length_header:
+  %i = phi i64 [0, %entry], [%ni, %length_body]
+  %size = phi i64 [0, %entry], [%nsize, %length_body]
+  %cmp = icmp slt i64 %i, %n
+  br i1 %cmp, label %length_body, label %alloc
+
+length_body:
+  %vi = call %Val @get_arg(%Args %args, i64 %i)
+  %si = extractvalue %Val %vi, 1
+  %sl = call i64 @strlen(i8* %si)
+  %ni = add i64 %i, 1
+  %nsize = add i64 %size, %sl
+  br label %length_header
+
+alloc:
+  %total = add i64 %size, 1 ; null byte
+  %outp = call i8* @GC_malloc(i64 %total)
+  br label %copy_header
+
+copy_header: 
+  %loc = phi i8* [ %outp, %alloc ], [ %nloc, %copy_body ]
+  %j = phi i64 [ 0, %alloc ], [ %nj, %copy_body ]
+  %ccmp = icmp slt i64 %j, %n
+  br i1 %ccmp, label %copy_body, label %done
+
+copy_body:
+  %jv = call %Val @get_arg(%Args %args, i64 %j)
+  %js = extractvalue %Val %jv, 1
+  %nloc = call i8* @stpcpy(i8* %loc, i8* %js)
+  %nj = add i64 1, %j
+  br label %copy_header
+
+done:
+  %out = call %Val @make_str_val(i8* %outp)
   ret %Val %out
 }
 
