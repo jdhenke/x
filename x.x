@@ -64,7 +64,7 @@
 (define (read-symbol)
   (symbol
     (read-matching
-      (lambda (c) 
+      (lambda (c)
         (not
           (or
             (eof? c)
@@ -85,15 +85,40 @@
 
 ;;; EVAL
 
-(define (eval sexpr env)
-  (cond ((list? sexpr)    (eval-verb sexpr env))
+(define bounce-marker (lambda() #f))
+
+(define (bounce? v)
+  (and (list? v) (= 2 (length v)) (equal? bounce-marker (car v))))
+
+(define (make-bounce f args)
+  (list
+    bounce-marker
+    (lambda ()
+      (apply f args))))
+
+(define (bounce v)
+  ((cadr v)))
+
+(define (trampoline v)
+  (if (bounce? v)
+    (trampoline (bounce v))
+    v))
+
+(define (eval sexpr env tail?)
+  (let ((v (eval-inner sexpr env tail?)))
+    (if tail?
+      v
+      (trampoline v))))
+
+(define (eval-inner sexpr env tail?)
+  (cond ((list? sexpr)    (eval-verb sexpr env tail?))
         ((boolean? sexpr) sexpr)
         ((number? sexpr)  sexpr)
         ((string? sexpr)  sexpr)
         ((symbol? sexpr)  (lookup env sexpr))
         (#t (error "unknown sexpr type" sexpr))))
 
-(define (eval-verb sexpr env)
+(define (eval-verb sexpr env tail?)
   (cond ((null? sexpr) sexpr)
         ((equal? (car sexpr) (symbol "define"))  (eval-define sexpr env))
         ((equal? (car sexpr) (symbol "set!"))    (eval-set! sexpr env))
@@ -104,7 +129,7 @@
         ((equal? (car sexpr) (symbol "cond"))    (eval-cond sexpr env))
         ((equal? (car sexpr) (symbol "or"))      (eval-or sexpr env))
         ((equal? (car sexpr) (symbol "and"))     (eval-and sexpr env))
-        (#t                                      (call-func sexpr env))))
+        (#t                                      (call-func sexpr env tail?))))
 
 (define (eval-define sexpr env)
   (if (list? (second sexpr))
@@ -113,7 +138,7 @@
 
 (define (define-var sexpr env)
   (let ((name (string (second sexpr)))
-        (val (eval (third sexpr) env)))
+        (val (eval (third sexpr) env #f)))
     (set-car! env (cons (list name val) (car env)))
     val))
 
@@ -152,7 +177,7 @@
         (if (null? exprs)
           (apply f (reverse vals))
           (let* ((arg-env (list (zip argnames (reverse vals)) env))
-                 (val (eval (cadar exprs) arg-env)))
+                 (val (eval (cadar exprs) arg-env #f)))
             (arg-loop (cdr exprs) (cons val vals))))))))
 
 (define (define-body env self named rest body)
@@ -162,7 +187,8 @@
         (let body-loop ((body body) (last #f))
           (if (null? body)
             last
-            (body-loop (cdr body) (eval (car body) env))))))
+            (body-loop (cdr body)
+                       (eval (car body) env (null? (cdr body))))))))
     (if self (set-car! env (list (list self f))))
     f))
 
@@ -177,32 +203,32 @@
   (let* ((p (cadr sexpr))
          (t (caddr sexpr))
          (f (if (> (length sexpr) 3) (cadddr sexpr) #f))
-         (pv (eval p env)))
-    (eval (if pv t f) env)))
+         (pv (eval p env #f)))
+    (eval (if pv t f) env #t)))
 
 (define (eval-cond sexpr env)
   (let loop ((conds (cdr sexpr)))
     (if (null? conds)
       #f
-      (if (eval (caar conds) env)
-        (eval (cadar conds) env)
+      (if (eval (caar conds) env #f)
+        (eval (cadar conds) env #t)
         (loop (cdr conds))))))
 
 (define (eval-or sexpr env)
   (let loop ((clauses (cdr sexpr)))
     (cond ((null? clauses) #f)
-          ((eval (car clauses) env) #t)
+          ((eval (car clauses) env #f) #t)
           (#t (loop (cdr clauses))))))
 
 (define (eval-and sexpr env)
   (let loop ((clauses (cdr sexpr)))
     (cond ((null? clauses) #t)
-          ((not (eval (car clauses) env)) #f)
+          ((not (eval (car clauses) env #f)) #f)
           (#t (loop (cdr clauses))))))
 
 (define (eval-set! sexpr env)
   (let ((name (string (cadr sexpr)))
-        (val (eval (caddr sexpr) env)))
+        (val (eval (caddr sexpr) env #f)))
     (let loop ((env env))
       (if (not env)
         (error "undefined" name))
@@ -211,10 +237,12 @@
          (set-cdr! p (list val))
          (loop (cadr env)))))))
 
-(define (call-func sexpr env)
-  (let ((f (eval (car sexpr) env))
-        (args (map (lambda (s) (eval s env)) (cdr sexpr))))
-    (apply f args)))
+(define (call-func sexpr env tail?)
+  (let ((f (eval (car sexpr) env #f))
+        (args (map (lambda (s) (eval s env #f)) (cdr sexpr))))
+    (if tail?
+      (make-bounce f args)
+      (apply f args))))
 
 (define (lookup env sexpr)
   (let ((name (string sexpr))
@@ -240,7 +268,7 @@
   (let ((sexpr (read)))
     (if (eof? sexpr)
       "Goodbye!"
-      (let ((v (eval sexpr global)))
+      (let ((v (eval sexpr global #f)))
         (xlog sexpr)
         (xlog v)
         (repl)))))
