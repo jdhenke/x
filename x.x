@@ -117,23 +117,17 @@
     (set-car! env (cons (list name val) (car env)))
     val))
 
-(define (bind-func-args argnames args)
-  (if (and (> (length argnames) 1) (equal? (second (reverse argnames)) "."))
-    (cons (list (last argnames) (sublist args (- (length argnames) 2) (length args)))
-          (zip (sublist argnames 0 (- (length argnames) 2)) args))
-    (zip argnames args)))
-
 (define (define-func sexpr env)
-  (let ((funcname (string (caadr sexpr)))
-        (argnames (map string (cdadr sexpr)))
+  (let ((name (string (caadr sexpr)))
+        (named (map string (cdadr sexpr)))
+        (rest #f)
         (body (cddr sexpr)))
-    (define f (lambda args
-      (let ((env (list (bind-func-args argnames args) env)))
-        (let loop ((body body) (last #f))
-          (if (null? body)
-            last
-            (loop (cdr body) (eval (car body) env)))))))
-    (set-car! env (cons (list funcname f) (car env)))
+    (if (and (> (length named) 1) (equal? (second (reverse named)) "."))
+      (let ()
+        (set! rest (first (reverse named)))
+        (set! named (reverse (cddr (reverse named))))))
+    (define f (define-body env #f named rest body))
+    (set-car! env (cons (list name f) (car env)))
     f))
 
 (define (define-lambda sexpr env)
