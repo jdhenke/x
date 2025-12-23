@@ -176,7 +176,7 @@
   (if (equal? n 0)
       "done"
       (count-to-infinity (- n 1))))
-(count-to-infinity 10000)
+(count-to-infinity 100000)
 
 
 ;(let ((fd (open "/tmp/foo.txt" 1537 438)))

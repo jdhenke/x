@@ -110,6 +110,7 @@
     sys/read
     third
     zip
+    modulo
     ))
 
 (define runtime "s")

@@ -2,4 +2,4 @@
 
 set -ex -o pipefail
 
-cat std.x check.x | ./scm x.x
+./scm x.x < <(cat overflow.x)
