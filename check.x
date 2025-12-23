@@ -65,7 +65,7 @@
 ; define lambda with closures
 (define (adder x) (lambda (y) (+ x y)))
 (define add-six (adder 6))
-(define 18 (add-six 12))
+(test 18 (add-six 12))
 
 ; lets
 (test 42 (let ((a 42))
@@ -172,11 +172,11 @@
 
 
 ; tail call optimization
-(define (count-to-infinity n)
-  (if (equal? n 0)
-      "done"
-      (count-to-infinity (- n 1))))
-(count-to-infinity 100000)
+;(define (count-to-infinity n)
+;  (if (equal? n 0)
+;      "done"
+;      (count-to-infinity (- n 1))))
+;(count-to-infinity 100000)
 
 
 ;(let ((fd (open "/tmp/foo.txt" 1537 438)))

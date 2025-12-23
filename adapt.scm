@@ -41,6 +41,8 @@
       c
       (list->string (list c)))))
 
+(define sys/exit exit)
+
 (define native-funcs
   '(
     +
@@ -104,6 +106,7 @@
     sublist
     symbol
     symbol?
+    sys/exit
     sys/read
     third
     zip
