@@ -30,6 +30,16 @@
 (define (string-list s)
   (map (lambda (c) (list->string (list c))) (string->list s)))
 
+(define print display)
+(define println (lambda (x)
+                  (print x)
+                  (newline)))
+
+(define (sys/read fd n)
+  (let ((c (read-char)))
+    (if (eof? c)
+      c
+      (list->string (list c)))))
 
 (define native-funcs
   '(
@@ -78,6 +88,8 @@
     number?
     peek-c
     pretty-print
+    print
+    println
     read-c
     reverse
     second
@@ -92,6 +104,7 @@
     sublist
     symbol
     symbol?
+    sys/read
     third
     zip
     ))
