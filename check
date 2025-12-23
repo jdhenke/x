@@ -1,8 +1,25 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 set -ex -o pipefail
 
-#cat x.x | ./x x.x
+# verify x checks out
+./scm x.x < <(cat std.x check.x)
+
+# verify xc checks out
 cat xc.ll > /tmp/out.ll && cat std.x check.x | ./scm xc.x >> /tmp/out.ll
 clang -Wno-override-module -lgc -L/usr/local/lib /tmp/out.ll -o /tmp/exe && /tmp/exe
 
+# verify bootstrapping compiler to a fixed point
+./b
+
+# verify bootstrapped compiler compiled check checks out
+cat xc.ll > /tmp/check.ll && cat std.x check.x | /tmp/xc1 >> /tmp/check.ll
+clang -Wno-override-module -lgc /tmp/check.ll -o /tmp/check
+/tmp/check
+
+# verify compiler tco
+cat xc.ll > /tmp/eo.ll && /tmp/xc1 < <(cat std.x eo.x) >> /tmp/eo.ll
+clang -Wno-override-module -lgc /tmp/eo.ll -o /tmp/eo
+/tmp/eo
+
+echo "PASS"

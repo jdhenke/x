@@ -268,8 +268,9 @@
   (let ((sexpr (read)))
     (if (eof? sexpr)
       "Goodbye!"
-      (let ((v (eval sexpr global #f)))
+      (let ()
         (xlog sexpr)
-        (xlog v)
-        (repl)))))
+        (let ((v (eval sexpr global #f)))
+          (xlog v)
+          (repl))))))
 

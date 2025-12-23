@@ -172,11 +172,11 @@
 
 
 ; tail call optimization
-(define (count-to-infinity n)
-  (if (equal? n 0)
-      "done"
-      (count-to-infinity (- n 1))))
-(count-to-infinity 100000)
+;(define (count-to-infinity n)
+;  (if (equal? n 0)
+;      "done"
+;      (count-to-infinity (- n 1))))
+;(count-to-infinity 100000) ;; interp too slow
 
 
 ;(let ((fd (open "/tmp/foo.txt" 1537 438)))
