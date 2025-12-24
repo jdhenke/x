@@ -2,24 +2,35 @@
 
 set -ex -o pipefail
 
-# verify x checks out
+# compile
+c() {
+  comp=$1
+  base=$(basename $2 .x)
+  cat xc.ll > /tmp/$base.ll && cat std.x $2 | $comp >> /tmp/$base.ll
+  clang -Wno-override-module -lgc -L/usr/local/lib /tmp/$base.ll -o /tmp/$base
+}
+
+# verify (s | x | check ) passes
 ./scm x.x < <(cat std.x check.x)
 
-# verify xc checks out
-cat xc.ll > /tmp/out.ll && cat std.x check.x | ./scm xc.x >> /tmp/out.ll
-clang -Wno-override-module -lgc -L/usr/local/lib /tmp/out.ll -o /tmp/exe && /tmp/exe
-
-# verify bootstrapping compiler to a fixed point
-./b
-
-# verify bootstrapped compiler compiled check checks out
-cat xc.ll > /tmp/check.ll && cat std.x check.x | /tmp/xc1 >> /tmp/check.ll
-clang -Wno-override-module -lgc /tmp/check.ll -o /tmp/check
+# verify ( s | xc | check ) passes
+c "./scm xc.x" check.x
 /tmp/check
 
-# verify compiler tco
-cat xc.ll > /tmp/eo.ll && /tmp/xc1 < <(cat std.x eo.x) >> /tmp/eo.ll
-clang -Wno-override-module -lgc /tmp/eo.ll -o /tmp/eo
+# verify ( x = s | xc | xc ; x | xc = x ) ; fixed point
+c "./scm xc.x" xc.x
+mv /tmp/xc /tmp/xc1
+c /tmp/xc1 xc.x
+mv /tmp/xc /tmp/xc2
+md5sum /tmp/xc1 /tmp/xc2
+
+# verify ( x | check ) passes
+c /tmp/xc1 check.x
+/tmp/check
+
+# verify (x | eo ) passes
+c /tmp/xc1 eo.x
 /tmp/eo
 
 echo "PASS"
+

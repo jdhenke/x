@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-set -ex -o pipefail
-
-cat xc.ll > /tmp/x.ll; /tmp/xc1 < <(cat std.x x.x) >> /tmp/x.ll
-clang -Wno-override-module -lgc -L/usr/local/lib /tmp/x.ll -o /tmp/x
-/tmp/x < $1
