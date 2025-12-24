@@ -110,7 +110,6 @@
     sys/read
     third
     zip
-    modulo
     ))
 
 (define runtime "s")
@@ -140,5 +139,4 @@
                      (native-eval s e)))
              native-funcs))
       #f))
-
 

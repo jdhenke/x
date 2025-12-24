@@ -42,7 +42,7 @@ declare i32 @waitpid(i32, i32*, i32)
 
 define %Env @make_global_env() {
   ; create env with val in it
-  %size = mul i64 64, 35
+  %size = mul i64 64, 38
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
@@ -82,6 +82,9 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_print, i64 32)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_newline, i64 33)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_list, i64 34)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_car, i64 35)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string, i64 36)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_cdr, i64 37)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -97,7 +100,7 @@ define void @store_native_func(%Val* %vals, %Val(%Env, %Args)* %f, i64 %i) {
   %f2 = insertvalue %Func %f1, %Env %nulle, 1
   %fv = call %Val @make_func_val(%Func %f2)
   %fvp = getelementptr %Val, %Val* %vals, i64 %i
-  store %Val %fv, %Val** %fvp
+  store %Val %fv, %Val* %fvp
   ret void
 }
 
@@ -938,4 +941,34 @@ more:
   %tail = call %List* @append_string_list(i8* %ns)
   %out = call %List* @cons(%Val %v, %List* %tail)
   ret %List* %out
+}
+
+define %Val @call_set_car(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %lp = extractvalue %Val %v0, 1
+  %l = bitcast i8* %lp to %List*
+  %carp = getelementptr %List, %List* %l, i64 0, i32 0
+  store %Val %v1, %Val* %carp
+  ret %Val %v0
+}
+
+define %Val @call_set_cdr(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %l0p = extractvalue %Val %v0, 1
+  %l0 = bitcast i8* %l0p to %List*
+  %l1p = extractvalue %Val %v1, 1
+  %l1 = bitcast i8* %l1p to %List*
+  %cdrp = getelementptr %List, %List* %l0, i64 0, i32 1
+  store %List* %l1, %List** %cdrp
+  ret %Val %v0
+}
+
+define %Val @call_string(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %vd = extractvalue %Val %v0, 1
+  %out1 = insertvalue %Val undef, i8 3, 0
+  %out2 = insertvalue %Val %out1, i8* %vd, 1
+  ret %Val %out2
 }

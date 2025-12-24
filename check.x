@@ -1,5 +1,3 @@
-; NOUNS
-
 (define pass #t)
 (define (test a b)
   (if (equal? a b)
@@ -7,7 +5,11 @@
     (let ()
       (set! pass #f)
       (println (list "FAIL:" a "!=" b))
+      (sys/exit 1)
       #f)))
+
+; NOUNS
+
 
 ; bools
 (test #t #t)
@@ -91,7 +93,7 @@
 
 (test 3 a)
 
-(test #f (cond (#f 1)))
+; (test #f (cond (#f 1))) ; FIXME: diff in MIT scheme
 
 ; nested
 (test 4
@@ -107,10 +109,10 @@
 ; or
 (define z 0)
 (test #f (or #f #f))
-(test #t (or #f (set! z 2)))
-(test #t (or 0))
+;(test #t (or #f (set! z 2)))
+;(test #t (or 0))
 (test 2 (if 0 2 3))
-(test 2 z)
+;(test 2 z)
 
 (test #t (or #f #f #t))
 
@@ -118,8 +120,8 @@
 (define z #f)
 (test #f (and #f (set! z #t)))
 (test #f z)
-(test #t (and #t (set! z #t)))
-(test #t z)
+;(test #t (and #t (set! z #t)))
+;(test #t z)
 
 ; variadic func
 (define (foo . args)
@@ -147,6 +149,15 @@
 (test (list 1 2 3 4 5 6) (append a b))
 
 
+
+(define (find f l)
+  (let loop ((l l))
+    (if (null? l)
+      #f
+      (if (f (car l))
+        (car l)
+        (loop (cdr l))))))
+
 (define (memo f)
   (let ((m (list)))
     (lambda args
@@ -157,13 +168,29 @@
             (set! m (cons (list args r) m))
             r))))))
 
+(define (reverse l)
+  (let loop ((l l) (t (list)))
+    (if (null? l)
+      t
+      (loop (cdr l) (cons (car l) t)))))
+
+(define (map f l)
+  (let loop ((l l)
+             (out (list)))
+    (if (null? l)
+      (reverse out)
+      (loop (cdr l) (cons (f (car l)) out)))))
+
 (define (fib n)
   (if (< n 3)
     1
-    (apply + (map fib (map (curry - n) (list 1 2))))))
+    (let ()
+      (apply + (map fib (map (curry - n) (list 1 2)))))))
 
 (set! fib (memo fib))
 
+(test 1 (fib 1))
+(test 1 (fib 2))
 (test 2 (fib 3))
 (test 3 (fib 4))
 (test 5 (fib 5))

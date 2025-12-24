@@ -1,5 +1,3 @@
-;;; READ
-
 (define (read-matching f)
   (apply string-append
     (let loop ((matched (list)))
@@ -83,9 +81,7 @@
       ((equal? c "\"")    (read-string))
       (#t                 (read-symbol)))))
 
-;;; EVAL
-
-(define bounce-marker (lambda () #f))
+(define bounce-marker (lambda () ))
 
 (define (bounce? v)
   (and (list? v) (= 2 (length v)) (equal? bounce-marker (car v))))
@@ -241,8 +237,7 @@
   (let ((f (eval (car sexpr) env #f))
         (args (map (lambda (s) (eval s env #f)) (cdr sexpr))))
     (if tail?
-      (let ()
-        (make-bounce f args))
+      (make-bounce f args)
       (apply f args))))
 
 (define (lookup env sexpr)
@@ -253,25 +248,3 @@
       (if d
         (cadr d)
         (if parent (lookup parent name) (error "undefined" name))))))
-
-;;; REPL
-
-(define runtime (string-append runtime "x"))
-(define global (make-env runtime))
-
-(define (xlog v)
-  (display runtime)
-  (display "> ")
-  (pretty-print v)
-  (newline))
-
-(let repl ()
-  (let ((sexpr (read)))
-    (if (eof? sexpr)
-      "Goodbye!"
-      (let ()
-        (xlog sexpr)
-        (let ((v (eval sexpr global #f)))
-          (xlog v)
-          (repl))))))
-

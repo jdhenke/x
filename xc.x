@@ -535,7 +535,9 @@
                    (list (symbol "print") 32)
                    (list (symbol "newline") 33)
                    (list (symbol "string-list") 34)
-                   (list (symbol "append" 35))
+                   (list (symbol "set-car!") 35)
+                   (list (symbol "string") 36)
+                   (list (symbol "set-cdr!") 37)
                    )
                   #f))
 
