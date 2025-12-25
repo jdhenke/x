@@ -43,6 +43,8 @@
 
 (define sys/exit exit)
 
+(define / quotient)
+
 (define native-funcs
   '(
     +
@@ -88,6 +90,7 @@
     null?
     number->string
     number?
+    pair?
     peek-c
     pretty-print
     print
@@ -110,6 +113,7 @@
     sys/read
     third
     zip
+    /
     ))
 
 (define runtime "s")

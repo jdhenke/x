@@ -88,7 +88,7 @@
 (define bounce-marker (lambda () #f))
 
 (define (bounce? v)
-  (and (list? v) (= 2 (length v)) (equal? bounce-marker (car v))))
+  (and (pair? v) (equal? bounce-marker (car v))))
 
 (define (make-bounce f args)
   (list

@@ -538,6 +538,10 @@
                    (list (symbol "set-car!") 35)
                    (list (symbol "string") 36)
                    (list (symbol "set-cdr!") 37)
+                   (list (symbol "modulo") 38)
+                   (list (symbol "*") 39)
+                   (list (symbol "/") 40)
+                   (list (symbol "pair?") 41)
                    )
                   #f))
 

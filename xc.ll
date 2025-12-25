@@ -42,7 +42,7 @@ declare i32 @waitpid(i32, i32*, i32)
 
 define %Env @make_global_env() {
   ; create env with val in it
-  %size = mul i64 64, 38
+  %size = mul i64 64, 42
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
@@ -85,6 +85,10 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_car, i64 35)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string, i64 36)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_cdr, i64 37)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_modulo, i64 38)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_mul, i64 39)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_div, i64 40)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_pair, i64 41)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env undef, %Val* %vals, 0
@@ -971,4 +975,58 @@ define %Val @call_string(%Env %env, %Args %args) {
   %out1 = insertvalue %Val undef, i8 3, 0
   %out2 = insertvalue %Val %out1, i8* %vd, 1
   ret %Val %out2
+}
+
+define %Val @call_modulo(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %d0 = extractvalue %Val %v0, 1
+  %d1 = extractvalue %Val %v1, 1
+  %i0 = ptrtoint i8* %d0 to i64
+  %i1 = ptrtoint i8* %d1 to i64
+  %r = srem i64 %i0, %i1
+  %out = call %Val @make_int_val(i64 %r)
+  ret %Val %out
+}
+
+define %Val @call_mul(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %d0 = extractvalue %Val %v0, 1
+  %d1 = extractvalue %Val %v1, 1
+  %i0 = ptrtoint i8* %d0 to i64
+  %i1 = ptrtoint i8* %d1 to i64
+  %r = mul i64 %i0, %i1
+  %out = call %Val @make_int_val(i64 %r)
+  ret %Val %out
+}
+
+define %Val @call_div(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %d0 = extractvalue %Val %v0, 1
+  %d1 = extractvalue %Val %v1, 1
+  %i0 = ptrtoint i8* %d0 to i64
+  %i1 = ptrtoint i8* %d1 to i64
+  %r = sdiv i64 %i0, %i1
+  %out = call %Val @make_int_val(i64 %r)
+  ret %Val %out
+}
+
+define %Val @call_pair(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %t = extractvalue %Val %v0, 0
+  %tcmp = icmp eq i8 %t, 4
+  br i1 %tcmp, label %check_cdr, label %no
+check_cdr:
+  %d = extractvalue %Val %v0, 1
+  %l = bitcast i8* %d to %List*
+  %vcmp = icmp eq %List* %l, null
+  br i1 %vcmp, label %no, label %yes
+yes:
+  %yesv = call %Val @make_bool_val(i1 1)
+  ret %Val %yesv
+no:
+  %nov = call %Val @make_bool_val(i1 0)
+  ret %Val %nov
 }
