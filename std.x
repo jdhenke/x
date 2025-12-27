@@ -68,6 +68,34 @@
   
 (define (eof? c) (equal? c eof))
 
+(define (print x)
+  (cond
+    ((string? x) (sys/write 1 x (string-length x)))
+    ((symbol? x)    (print (string x)))
+    ((boolean? x)   (print (if x "#t" "#f")))
+    ((number? x)    (print (number->string x)))
+    ((function? x)  (print ("λ")))
+    ((list? x)
+     (let ()
+       (print "(")
+       (let loop ((l x))
+         (if (null? l)
+           (print ")")
+           (let ()
+             (print (car l))
+             (if (not (null? (cdr l)))
+               (print " "))
+             (loop (cdr l)))))))))
+
+(define (println x)
+  (print x)
+  (print "\n"))
+
+(define (newline)
+  (print "\n"))
+
+(define display print)
+
 (define (error . args)
   (println "ERROR")
   (map println args)
@@ -117,8 +145,6 @@
 (define (assoc k l)
   (find (lambda (r) (equal? (car r) k)) l))
 
-(define display print)
-
 (define (sublist l i j)
   (let loop ((l l)
         (i i)
@@ -131,6 +157,56 @@
 (define pretty-print print)
 
 (define runtime "x")
+
+(define n-to-s
+  (list (list 0 "0")
+        (list 1 "1")
+        (list 2 "2")
+        (list 3 "3")
+        (list 4 "4")
+        (list 5 "5")
+        (list 6 "6")
+        (list 7 "7")
+        (list 8 "8")
+        (list 9 "9")))
+
+(define s-to-n
+  (list (list "0" 0)
+        (list "1" 1)
+        (list "2" 2)
+        (list "3" 3)
+        (list "4" 4)
+        (list "5" 5)
+        (list "6" 6)
+        (list "7" 7)
+        (list "8" 8)
+        (list "9" 9)))
+
+(define (number->string x)
+  (define out (list))
+  (if (< x 0)
+    (let () (set! x (- 0 x)) (set! out (cons "-" out))))
+  (let loop ((x x) (out out))
+    (if (> x 9)
+      (let ((r (modulo x 10)))
+        (loop (/ x 10) (cons (cadr (assoc r n-to-s)) out)))
+      (apply string-append (cons (cadr (assoc x n-to-s)) out)))))
+
+(define (string->number s)
+  (let loop ((cs (string-list s)) (out 0))
+    (if (null? cs)
+      out
+      (loop (cdr cs) (+ (* out 10) (cadr (assoc (car cs) s-to-n)))))))
+
+(define (string-number? s)
+  (and
+    (> (string-length s) 0)
+    (let loop ((l (string-list s)))
+      (if (null? l)
+        #t
+        (if (assoc (car l) s-to-n)
+          (loop (cdr l))
+          #f)))))
 
 (define (make-env runtime)
   (list

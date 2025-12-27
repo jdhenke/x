@@ -10,9 +10,9 @@
 
 ; NOUNS
 
-
 ; bools
 (test #t #t)
+(test #t (equal? #f #f))
 (test #f #f)
 (test #f (equal? #t #f))
 
@@ -225,6 +225,22 @@
 ;      (wait pid)
 ;      (println "p: done")))
 ;  pid)
+
+(test "420" (number->string 420))
+(test "0" (number->string 0))
+(test 420 (string->number "420"))
+(test 0 (string->number "0"))
+(test 9 (string->number "9"))
+(test 10 (string->number "10"))
+(test 11 (string->number "11"))
+(test (string->number "9") 9)
+(test (string->number "10") 10)
+(test (string->number "11") 11)
+
+(test #f (string-number? "a"))
+(test #f (string-number? ""))
+(test #t (string-number? "1"))
+(test #t (string-number? "0"))
 
 (if pass
   (println "PASS")

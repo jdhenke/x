@@ -41,14 +41,23 @@
       c
       (list->string (list c)))))
 
+(define (sys/write fd s n)
+  (display s))
+
 (define sys/exit exit)
 
 (define / quotient)
+
+(define (string-length s) (bytevector-length (string->utf8 s)))
+
+(define function? procedure?)
 
 (define native-funcs
   '(
     +
     -
+    *
+    /
     <
     >
     >=
@@ -80,11 +89,13 @@
     find
     first
     for-each
+    function?
     length
     last
     list
     list?
     map
+    modulo
     newline
     not
     null?
@@ -104,6 +115,7 @@
     string->number
     string-append
     string-length
+    string-list
     string-number?
     string?
     sublist
@@ -111,6 +123,7 @@
     symbol?
     sys/exit
     sys/read
+    sys/write
     third
     zip
     /
