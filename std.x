@@ -251,6 +251,7 @@
       (list "find" find)
       (list "first" first)
       (list "for-each" for-each)
+      (list "function?" function?)
       (list "length" length)
       (list "last" last)
       (list "list" list)
