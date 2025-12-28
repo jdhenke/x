@@ -547,11 +547,14 @@ define i1 @to_i1(%Val %v) {
   %t = extractvalue %Val %v, 0
   %d = extractvalue %Val %v, 1
   %isnotbool = icmp ne i8 %t, 1
+  br i1 %isnotbool, label %notb, label %b
+notb:
+  ret i1 1
+b:
   %dv = load i8, i8* %d
   %db = trunc i8 %dv to i1
   %isnotfalse = icmp ne i1 %db, 0
-  %out = or i1 %isnotbool, %isnotfalse
-  ret i1 %out
+  ret i1 %isnotfalse
 }
 
 define void @set_rest(%Env %env, %Args %args, i64 %n) {
