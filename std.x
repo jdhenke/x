@@ -74,7 +74,7 @@
     ((symbol? x)    (print (string x)))
     ((boolean? x)   (print (if x "#t" "#f")))
     ((number? x)    (print (number->string x)))
-    ((function? x)  (print ("λ")))
+    ((function? x)  (print "λ"))
     ((list? x)
      (let ()
        (print "(")
