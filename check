@@ -7,25 +7,33 @@ c() {
   comp=$1
   base=$(basename $2 .x)
   cat xc.ll > /tmp/$base.ll && cat std.x $2 | $comp >> /tmp/$base.ll
-  clang -Wno-override-module -lgc -L/usr/local/lib /tmp/$base.ll -o /tmp/$base
+  clang -Wno-override-module -lgc /tmp/$base.ll -o /tmp/$base
 }
 
-# verify (s | x | check ) passes
+# verify (s | xi | check ) passes
 ./scm x.x < <(cat std.x check.x)
 
 # verify ( s | xc | check ) passes
 c "./scm xc.x" check.x
 /tmp/check
 
-# verify (x = s | xc | xc ) finishes
+# verify ( s | xc | xi | check ) passes
+c "./scm xc.x" x.x
+/tmp/x < <(cat std.x check.x)
+
+# verify ( x = s | xc | xc ) finishes
 c "./scm xc.x" xc.x
 mv /tmp/xc /tmp/xc1
 
-# verify (x | check ) passes
+# verify ( x | check ) passes
 c /tmp/xc1 check.x
 /tmp/check
 
-# verify ( x = s | xc | xc ; x | xc = x ) ; fixed point
+# verify (x | xi | check ) passes
+c /tmp/xc1 x.x
+/tmp/x < <(cat std.x check.x)
+
+# verify ( x | xc = x ) ; fixed point
 c /tmp/xc1 xc.x
 mv /tmp/xc /tmp/xc2
 md5sum /tmp/xc1 /tmp/xc2
