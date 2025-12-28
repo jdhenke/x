@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -ex -o pipefail
+set -e -o pipefail
+
+trap 'echo "FAIL: Command failed with exit code $?"' ERR
 
 # compile
 c() {
@@ -10,41 +12,44 @@ c() {
   clang -Wno-override-module -lgc /tmp/$base.ll -o /tmp/$base
 }
 
-# verify (s | xi | check ) passes
-./scm x.x < <(cat std.x check.x)
+date > /tmp/log
 
-# verify ( s | xc | check ) passes
-c "./scm xc.x" check.x
-/tmp/check
+echo "verify ( s | xi | check ) passes..."
+./scm x.x < <(cat std.x check.x) 2>&1 >> /tmp/log
 
-# verify ( s | xc | xi | check ) passes
-c "./scm xc.x" x.x
-/tmp/x < <(cat std.x check.x)
+echo "verify ( s | xc | check ) passes..."
+c "./scm xc.x" check.x 2>&1 >> /tmp/log
+/tmp/check 2>&1 >> /tmp/log
 
-# verify ( x = s | xc | xc ) finishes
-c "./scm xc.x" xc.x
+echo "verify ( s | xc | xi = XI ) finishes..."
+c "./scm xc.x" x.x 2>&1 >> /tmp/log
+
+echo "verify ( XI | check ) passes..."
+/tmp/x < <(cat std.x check.x) 2>&1 >> /tmp/log
+
+echo "verify ( s | xc | xc = XC) finishes..."
+c "./scm xc.x" xc.x 2>&1 >> /tmp/log
 mv /tmp/xc /tmp/xc1
 
-# verify ( x | check ) passes
-c /tmp/xc1 check.x
-/tmp/check
+echo "verify ( XC | check ) passes -- compiler!..."
+c /tmp/xc1 check.x 2>&1 >> /tmp/log
+/tmp/check 2>&1 >> /tmp/log
 
-# verify (x | xi | check ) passes
-c /tmp/xc1 x.x
-/tmp/x < <(cat std.x check.x)
+echo "verify ( XC | xi | check ) passes -- REPL!..."
+c /tmp/xc1 x.x 2>&1 >> /tmp/log
+/tmp/x < <(cat std.x check.x) 2>&1 >> /tmp/log
 
-# verify ( x | xc = x ) ; fixed point
-c /tmp/xc1 xc.x
+echo "verify ( XC | xi | xi | check ) passes -- nested REPLs!..."
+cat std.x x.x check.x | /tmp/x 2>&1 >> /tmp/log
+
+echo "verify ( XC | xc = XC ) -- fixed point!..."
+c /tmp/xc1 xc.x 2>&1 >> /tmp/log
 mv /tmp/xc /tmp/xc2
-md5sum /tmp/xc1 /tmp/xc2
+[ "$(md5 -q /tmp/xc1)" = "$(md5 -q /tmp/xc2)" ]
 
-# verify ( x | check ) passes
-c /tmp/xc1 check.x
-/tmp/check
-
-# verify (x | eo ) passes
-c /tmp/xc1 eo.x
-/tmp/eo
+echo "Verify ( XC | eo ) passes -- TCO!..."
+c /tmp/xc1 eo.x 2>&1 >> /tmp/log
+/tmp/eo 2>&1 >> /tmp/log
 
 echo "PASS"
 
