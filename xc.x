@@ -64,7 +64,7 @@
 (define (read-symbol)
   (symbol
     (read-matching
-      (lambda (c) 
+      (lambda (c)
         (not
           (or
             (eof? c)

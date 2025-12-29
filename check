@@ -4,6 +4,13 @@ set -e -o pipefail
 
 trap 'echo "FAIL: Command failed with exit code $?"' ERR
 
+# FIXME!!
+#cat xc.x std.x x.x | /tmp/x | grep -v '^xx>'
+
+# FIXME: put read impls in shared std.x
+#
+# FIXME: cleanup runtime prefix for REPL logging
+
 # compile
 c() {
   comp=$1
@@ -35,17 +42,22 @@ echo "verify ( XC | check ) passes -- compiler!..."
 c /tmp/xc1 check.x 2>&1 >> /tmp/log
 /tmp/check 2>&1 >> /tmp/log
 
-echo "verify ( XC | xi | check ) passes -- REPL!..."
-c /tmp/xc1 x.x 2>&1 >> /tmp/log
-/tmp/x < <(cat std.x check.x) 2>&1 >> /tmp/log
-
-echo "verify ( XC | xi | xi | check ) passes -- nested REPLs!..."
-cat std.x x.x check.x | /tmp/x 2>&1 >> /tmp/log
-
 echo "verify ( XC | xc = XC ) -- fixed point!..."
 c /tmp/xc1 xc.x 2>&1 >> /tmp/log
 mv /tmp/xc /tmp/xc2
 [ "$(md5 -q /tmp/xc1)" = "$(md5 -q /tmp/xc2)" ]
+
+echo "verify ( XC | xi = XI )..."
+mv /tmp/x /tmp/x1
+c /tmp/xc1 x.x 2>&1 >> /tmp/log
+[ "$(md5 -q /tmp/x1)" = "$(md5 -q /tmp/x)" ]
+
+echo "verify ( XI | check ) passes -- REPL!..."
+c /tmp/xc1 x.x 2>&1 >> /tmp/log
+/tmp/x < <(cat std.x check.x) 2>&1 >> /tmp/log
+
+echo "verify ( XI | xi | check ) passes -- nested REPLs!..."
+cat std.x x.x check.x | /tmp/x 2>&1 >> /tmp/log
 
 echo "Verify ( XC | eo ) passes -- TCO!..."
 c /tmp/xc1 eo.x 2>&1 >> /tmp/log

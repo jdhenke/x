@@ -1,2 +1,1 @@
-; illustrative of problem
-(println (number->string 0))
+(println (+ 1 2))

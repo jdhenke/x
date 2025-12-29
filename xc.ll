@@ -5,24 +5,17 @@
 %Func = type { %Val(%Env, %Args)*, %Env } ; ptr, closure
 %List = type { %Val, %List* } ; car, cdr
 
+declare i8* @GC_malloc(i64)
+
 declare i64 @strlen(i8*)
-declare i8* @strcpy(i8*, i8*)
-declare i8* @strcat(i8*, i8*)
 declare i8* @stpcpy(i8*, i8*)
 declare i32 @strcmp(i8*, i8*)
 
-declare void @print_i64(i64)
-
-declare noalias i8* @GC_malloc(i64)
-
-;; syscalls
 declare void @exit(i32) noreturn
-
 declare i32 @openat(i8*, i32, i8*, i32, i32)
 declare i64 @read(i32, i8*, i64)
 declare i64 @write(i32, i8*, i64)
 declare i32 @close(i32)
-
 declare i32 @fork()
 declare i32 @execve(i8*, i8**, i8**)
 declare i32 @waitpid(i32, i32*, i32)
@@ -34,43 +27,61 @@ define %Env @make_global_env() {
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
-  ; be sure to update size accordingly
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_exit, i64 0)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 1)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_plus, i64 2)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_apply, i64 3)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_open, i64 4)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_close, i64 5)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_write, i64 6)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_read, i64 8)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_fork, i64 9)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_equal, i64 10)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
+  ;; TYPES
+  ;; each
+  ; bool
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_boolean, i64 21)
+  ; int
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_integer, i64 22)
+  ; str
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_string, i64 23)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_append, i64 13)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_list, i64 29)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_length, i64 28)
+  ; list
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_list, i64 24)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 1)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_car, i64 14)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cdr, i64 15)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_cons, i64 16)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_nullq, i64 17)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_slt, i64 18)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_sub, i64 19)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_symbol, i64 20)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_boolean, i64 21)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_integer, i64 22)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_string, i64 23)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_list, i64 24)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_symbol, i64 25)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_function, i64 26)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list_length, i64 27)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_length, i64 28)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_list, i64 29)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_car, i64 30)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string, i64 31)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_cdr, i64 32)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_modulo, i64 33)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_pair, i64 36)
+  ; func
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_function, i64 26)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_apply, i64 3)
+  ; symb
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_symbol, i64 25)
+
+  ;; conversions
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string, i64 31)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_symbol, i64 20)
+
+  ;; all
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_equal, i64 10)
+
+  ;; CPUCALLS
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_slt, i64 18)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_plus, i64 2)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_sub, i64 19)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_mul, i64 34)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_div, i64 35)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_pair, i64 36)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_modulo, i64 33)
+
+  ;; SYSCALLS
+  ; exit
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_exit, i64 0)
+  ; files
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_open, i64 4)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_read, i64 8)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_write, i64 6)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_close, i64 5)
+  ; procs
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_fork, i64 9)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
 
   ; construct global env with native funcs
   %e1 = insertvalue %Env zeroinitializer, %Val* %vals, 0
@@ -351,7 +362,6 @@ define %Val @sys_close(%Env %env, %Args %args) {
   %outv = call %Val @make_int_val(i64 %out64)
   ret %Val %outv
 }
-
 
 define %Val @call_list(%Env %env, %Args %args) {
   %vs = extractvalue %Args %args, 0
