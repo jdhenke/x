@@ -1,4 +1,15 @@
-;; WIP
+;; TODO: write program from which this framework emerges
+;; TODO: write a program that proves any combination
+
+;; Check binary equality (black box)
+; C = Scc = Sicc = Icc = Iicc = Cc
+; I = Sci = Sici = Ici = Iici = Ci
+; T = Sct = Sict = Ict = Iict = Ct
+
+;; Check output equality (glass box)
+; T = St  = Sit  = It  = Iit
+
+; Verify all possible combinations
 
 (define (next l)
   (cond
@@ -22,9 +33,7 @@
 
 (define (cull? l)
   (or
-    (> (length l) 10)
-    (and (>= (length l) 3) (equal? (list "c" "c" "c") (sublist l 0 3)))
-    (and (>= (length l) 3) (nout? l) (nout? (cdr l)) (nout? (cddr l)))))
+    (> (length l) 6)))
 
 (define (nout? l) (not (out? l)))
 

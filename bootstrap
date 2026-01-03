@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -ev -o pipefail
+
+# compile
+c() {
+  comp=$1
+  base=$(basename $2 .x)
+  cat xc.ll > /tmp/$base.ll && cat std.x $2 | $comp >> /tmp/$base.ll
+  clang -Wno-override-module -lgc /tmp/$base.ll -o /tmp/$base
+}
+
+cat xc.ll > /tmp/xc.ll
+cat xc.x std.x xc.x | ./xs >> /tmp/xc.ll
+clang -Wno-override-module -lgc /tmp/xc.ll -o ./xc
+
+cat xc.ll > /tmp/xi.ll
+cat std.x xi.x | ./xc >> /tmp/xi.ll
+clang -Wno-override-module -lgc /tmp/xi.ll -o ./xi
+
+echo "DONE"

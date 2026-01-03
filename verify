@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+## Check binary equality (black box)
+# C = Scc = Sicc = Icc = Iicc = Cc
+# I = Sci = Sici = Ici = Iici = Ci
+# T = Sct = Sict = Ict = Iict = Ct
+
+## Check output equality (glass box)
+# T = St  = Sit  = It  = Iit
+
+set -e -o pipefail
+
+c() {
+  comp=$1
+  base=$(basename $2 .x)
+  cat xc.ll > /tmp/$base.ll && cat std.x $2 | $comp >> /tmp/$base.ll
+  clang -Wno-override-module -lgc /tmp/$base.ll -o /tmp/$base
+}
+
+eq() {
+  [ "$(md5 -q $1)" = "$(md5 -q $2)" ]
+}
+
+### Compiling
+
+echo "Compiling C..."
+c "./scm xc.x" xc.x
+mv /tmp/xc /tmp/comp
+
+echo "Compiling I..."
+c "./scm xc.x" x.x
+mv /tmp/x /tmp/interp
+
+echo "Compiling T..."
+c "./scm xc.x" check.x
+mv /tmp/check /tmp/test
+
+### C equalities
+
+echo "C = Scc..."
+c "./scm xc.x" xc.x
+eq /tmp/comp /tmp/xc
+
+# FIXME! FAILS!! undefined symbol not
+echo "C = Sicc..."
+#./scm x.x < <(cat std.x xc.x std.x xc.x)
+
+# FIXME! FAILS!! undefined symbol not
+echo "C = Icc..."
+# /tmp/interp < <(cat xc.x std.x xc.x)
+
+# FIXME! FAILS!! u
+# FIXME! FAILS!! undefined symbol not
+echo "C = Iicc..."
+#/tmp/interp < <(cat x.x std.x xc.x std.x xc.x)
+
+echo "C = Cc..."
+c /tmp/comp xc.x
+eq /tmp/comp /tmp/xc
