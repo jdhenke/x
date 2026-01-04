@@ -12,18 +12,20 @@ declare i8* @stpcpy(i8*, i8*)
 declare i32 @strcmp(i8*, i8*)
 
 declare void @exit(i32) noreturn
-declare i32 @openat(i8*, i32, i8*, i32, i32)
+declare i32 @open(i8*, i32, i32)
 declare i64 @read(i32, i8*, i64)
 declare i64 @write(i32, i8*, i64)
 declare i32 @close(i32)
+declare i32 @dup(i32)
+declare i32 @dup2(i32, i32)
 declare i32 @fork()
 declare i32 @execve(i8*, i8**, i8**)
 declare i32 @waitpid(i32, i32*, i32)
 
-define %Env @make_global_env() {
+define %Env @make_global_env(i32 %argc, i8** %argv) {
   ; create env with val in it
   %fsize = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
-  %size = mul i64 %fsize, 37
+  %size = mul i64 %fsize, 40
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
@@ -71,6 +73,8 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_modulo, i64 33)
 
   ;; SYSCALLS
+  ; args
+  call void @store_command_line(%Val* %vals, i64 39, i32 %argc, i8** %argv)
   ; exit
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_exit, i64 0)
   ; files
@@ -78,6 +82,8 @@ define %Env @make_global_env() {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_read, i64 8)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_write, i64 6)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_close, i64 5)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_dup, i64 37)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_dup2, i64 38)
   ; procs
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_fork, i64 9)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
@@ -99,6 +105,50 @@ define void @store_native_func(%Val* %vals, %Val(%Env, %Args)* %f, i64 %i) {
   %fvp = getelementptr %Val, %Val* %vals, i64 %i
   store %Val %fv, %Val* %fvp
   ret void
+}
+
+define void @store_command_line(%Val* %vals, i64 %i, i32 %argc, i8** %argv) {
+  ; make string list value out of argc and argv
+  %l = call %List* @from_string_array(i32 %argc, i8** %argv)
+  %lv = call %Val @make_list_val(%List* %l)
+
+  ; make pointer to the one value
+  %size = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
+  %lvp = call i8* @GC_malloc(i64 %size) ; single value
+  ; make the env
+  %e = insertvalue %Env zeroinitializer, %Val* %lvp, 0
+  ; make the func
+  %f0 = insertvalue %Func zeroinitializer, %Val(%Env,%Args)* @call_command_line, 0
+  %f = insertvalue %Func %f0, %Env %e, 1
+
+  ; box the func as a value
+  %fv = call %Val @make_func_val(%Func %f)
+
+  ; store in globals
+  %fvp = getelementptr %Val, %Val* %vals, i64 %i
+  store %Val %fv, %Val* %fvp
+  ret void
+}
+
+define %List* @from_string_array(i32 %n, i8** %p) {
+entry:
+  %cmp = icmp eq i32 %n, 0
+  br i1 %cmp, label %done, label %more
+done:
+  ret %List* null
+more:
+  %first = load i8*, i8** %p
+  %sv = call %Val @make_str_val(i8* %first)
+  %np = getelementptr i8**, i8** %p, i64 1
+  %ni = sub i32 %n, 1
+  %tail = call %List* @from_string_array(i32 %ni, i8** %np)
+  %l = call %List* @cons(%Val %sv, %List* %tail)
+  ret %List* %l
+}
+
+define %Val @call_command_line(%Env %env, %Args %args) {
+  %out = call %Val @lookup(%Env %env, i64 0, i64 0)
+  ret %Val %out
 }
 
 define %Val @lookup(%Env %env, i64 %depth, i64 %offset) {
@@ -156,15 +206,15 @@ define %Val @sys_open(%Env %env, %Args %args) {
   %cmp = icmp slt i64 %n, 3
   br i1 %cmp, label %l2, label %l3
 l2:
-  %out2 = call i32 @openat(i32 -100, i8* %v1p, i32 %v2i32, i32 0)
-  %out2i64 = zext i32 %out2 to i64
+  %out2 = call i32 @open(i8* %v1p, i32 %v2i32, i32 0)
+  %out2i64 = sext i32 %out2 to i64
   %outv2 = call %Val @make_int_val(i64 %out2i64)
   ret %Val %outv2
 l3:
   %v3 = call %Val @get_arg(%Args %args, i64 2)
   %v3i32 = call i32 @val_to_i32(%Val %v3)
-  %out3 = call i32 @openat(i32 -100, i8* %v1p, i32 %v2i32, i32 %v3i32)
-  %out3i64 = zext i32 %out3 to i64
+  %out3 = call i32 @open(i8* %v1p, i32 %v2i32, i32 %v3i32)
+  %out3i64 = sext i32 %out3 to i64
   %outv3 = call %Val @make_int_val(i64 %out3i64)
   ret %Val %outv3
 }
@@ -177,7 +227,7 @@ define %Val @sys_write(%Env %env, %Args %args) {
   %v3 = call %Val @get_arg(%Args %args, i64 2)
   %n = call i64 @val_to_i64(%Val %v3)
   %w = call i32 @write(i32 %fd, i8* %data, i64 %n)
-  %w64 = zext i32 %w to i64
+  %w64 = sext i32 %w to i64
   %out = call %Val @make_int_val(i64 %w64)
   ret %Val %out
 }
@@ -190,7 +240,7 @@ define %Val @sys_read(%Env %env, %Args %args) {
   %size = add i64 %n, 1
   %a = call i8* @GC_malloc(i64 %size)
   %nr = call i32 @read(i32 %fd, i8* %a, i64 %n)
-  %nr64 = zext i32 %nr to i64
+  %nr64 = sext i32 %nr to i64
   %bp = getelementptr i8, i8* %a, i64 %nr64
   store i8 0, i8* %bp
   %out = call %Val @make_str_val(i8* %a)
@@ -199,7 +249,7 @@ define %Val @sys_read(%Env %env, %Args %args) {
 
 define %Val @sys_fork(%Env %env, %Args %args) {
   %pid = call i32 @fork()
-  %pid64 = zext i32 %pid to i64
+  %pid64 = sext i32 %pid to i64
   %out = call %Val @make_int_val(i64 %pid64)
   ret %Val %out
 }
@@ -292,7 +342,7 @@ define %Val @sys_waitpid(%Env %env, %Args %args) {
   %statusp = call i8* @GC_malloc(i64 32)
   %status = bitcast i8* %statusp to i32*
   %w = call i32 @waitpid(i32 %pid, i32* %status, i32 0)
-  %w64 = zext i32 %pid to i64
+  %w64 = sext i32 %pid to i64
   %out = call %Val @make_int_val(i64 %w64)
   ret %Val %out
 }
@@ -305,7 +355,7 @@ define %Val @sys_execve(%Env %env, %Args %args) {
   %v3 = call %Val @get_arg(%Args %args, i64 2)
   %enva = call i8** @to_str_array(%Val %v3)
   %ex = call i32 @execve(i8* %path, i8** %argsa, i8** %enva)
-  %ex64 = zext i32 %ex to i64
+  %ex64 = sext i32 %ex to i64
   %out = call %Val @make_int_val(i64 %ex64)
 
   ret %Val %out
@@ -358,7 +408,27 @@ define %Val @sys_close(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 0)
   %v1i32 = call i32 @val_to_i32(%Val %v1)
   %out = call i32 @close(i32 %v1i32)
-  %out64 = zext i32 %out to i64
+  %out64 = sext i32 %out to i64
+  %outv = call %Val @make_int_val(i64 %out64)
+  ret %Val %outv
+}
+
+define %Val @sys_dup(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %v1i32 = call i32 @val_to_i32(%Val %v1)
+  %out = call i32 @dup(i32 %v1i32)
+  %out64 = sext i32 %out to i64
+  %outv = call %Val @make_int_val(i64 %out64)
+  ret %Val %outv
+}
+
+define %Val @sys_dup2(%Env %env, %Args %args) {
+  %v1 = call %Val @get_arg(%Args %args, i64 0)
+  %v1i32 = call i32 @val_to_i32(%Val %v1)
+  %v2 = call %Val @get_arg(%Args %args, i64 1)
+  %v2i32 = call i32 @val_to_i32(%Val %v2)
+  %out = call i32 @dup2(i32 %v1i32, i32 %v2i32)
+  %out64 = sext i32 %out to i64
   %outv = call %Val @make_int_val(i64 %out64)
   ret %Val %outv
 }

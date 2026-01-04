@@ -42,9 +42,13 @@
       (list->string (list c)))))
 
 (define (sys/write fd s n)
-  (display s))
+  (print s)) ; hack
 
 (define sys/exit exit)
+
+(define (sys/execve exe args env)
+  (load-option 'synchronous-subprocess)
+  (exit (run-synchronous-subprocess exe args)))
 
 (define / quotient)
 
@@ -80,7 +84,6 @@
     cdddr
     cons
     curry
-    display
     filter
     enumerate
     eof?
@@ -124,6 +127,7 @@
     sys/exit
     sys/read
     sys/write
+    sys/execve
     third
     zip
     /
@@ -131,8 +135,8 @@
 
 (define runtime "s")
 (define (xlog v)
-  (display runtime)
-  (display "> ")
+  (print runtime)
+  (print "> ")
   (pretty-print v)
   (newline))
 
@@ -141,8 +145,8 @@
 (define native-eval eval)
 (define (make-env runtime)
   (define (xlog v)
-    (display runtime)
-    (display "> ")
+    (print runtime)
+    (print "> ")
     (pretty-print v)
     (newline))
   (list
@@ -157,3 +161,4 @@
              native-funcs))
       #f))
 
+(load-option 'synchronous-subprocess)

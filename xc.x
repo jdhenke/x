@@ -402,8 +402,8 @@
   (emit-expr "phi %Val [ " tv ", %" tl " ], [ " fv ", %" fl " ]"))
 
 (define (emit-main all env)
-  (emit-raw-line "define i32 @main() {" )
-  (emit-line "%env = call %Env @make_global_env()")
+  (emit-raw-line "define i32 @main(i32 %argc, i8** %argv) {" )
+  (emit-line "%env = call %Env @make_global_env(i32 %argc, i8** %argv)")
   (define m (emit-body all env #f (list) #f #f))
   (define args (emit-expr "insertvalue %Args undef, i64 0, 1"))
   (emit-line "call %Val @call_func_val(%Val " m ", %Args " args ")")
@@ -489,8 +489,8 @@
     (lambda (scope)
       (for-each
         (lambda (line)
-          (display (apply string-append (map
-                                          (lambda (x) (if (number? x) (number->string x) x)) line)))
+          (print (apply string-append
+                        (map (lambda (x) (if (number? x) (number->string x) x)) line)))
           (newline))
         scope)
       (newline))
@@ -506,6 +506,8 @@
                    (list (symbol "apply") 3)
                    (list (symbol "sys/open") 4)
                    (list (symbol "sys/close") 5)
+                   (list (symbol "sys/dup") 37)
+                   (list (symbol "sys/dup2") 38)
                    (list (symbol "sys/write") 6)
                    (list (symbol "sys/read") 8)
                    (list (symbol "sys/fork") 9)
@@ -536,13 +538,45 @@
                    (list (symbol "*") 34)
                    (list (symbol "/") 35)
                    (list (symbol "pair?") 36)
+                   (list (symbol "command-line") 39)
                    )
                   #f))
 
-(let ((all (let loop ((all (list)))
-  (let ((sexpr (read)))
-    (if (eof? sexpr)
-      (reverse all)
-      (loop (cons sexpr all)))))))
-  (emit-main all global)
-  (print-file))
+(define (collect-sexprs)
+  (let loop ((all (list)))
+    (let ((sexpr (read)))
+      (if (eof? sexpr)
+        (reverse all)
+        (loop (cons sexpr all))))))
+
+(define (std-sexprs)
+  (with-input-from-file "std.x"
+    (lambda ()
+      (collect-sexprs))))
+
+(define (run exe . args)
+  (let ((code (run-synchronous-subprocess exe args)))
+    (if (not (= code 0))
+      (let ()
+        (println (string-append exe " error"))
+        (sys/exit code)))))
+
+(let ((out
+        (let loop ((args (command-line)))
+          (if (null? args)
+            "/tmp/exe"
+            (if (equal? (car args) "-o")
+              (cadr args)
+              (loop (cdr args))))))
+      (ll "/tmp/out.ll"))
+  (let ((main-sexprs (collect-sexprs)))
+    (let ((all (append (std-sexprs) main-sexprs)))
+      (emit-main all global)
+      (with-output-to-file ll
+        (lambda ()
+          (print-file)))
+      (run "/bin/sh" "-c" (string-append "cat xc.ll " ll " > /tmp/both.ll"))
+      (run "/usr/bin/arch" "-arm64" "clang" "-Wno-override-module" "-lgc" "/tmp/both.ll" "-o" out)
+      (if (equal? out "/tmp/exe")
+        (run out)
+        (sys/exit 0)))))

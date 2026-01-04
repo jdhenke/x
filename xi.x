@@ -260,8 +260,8 @@
 (define global (make-env runtime))
 
 (define (xlog v)
-  (display runtime)
-  (display "> ")
+  (print runtime)
+  (print "> ")
   (pretty-print v)
   (newline))
 
