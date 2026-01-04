@@ -262,7 +262,7 @@
 (define (xlog v)
   (print runtime)
   (print "> ")
-  (pretty-print v)
+  (print v)
   (newline))
 
 (let repl ()

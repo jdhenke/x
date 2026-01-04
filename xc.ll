@@ -342,11 +342,12 @@ next:
 define %Val @sys_waitpid(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 0)
   %pid = call i32 @val_to_i32(%Val %v1)
-  %statusp = call i8* @GC_malloc(i64 32)
-  %status = bitcast i8* %statusp to i32*
-  %w = call i32 @waitpid(i32 %pid, i32* %status, i32 0)
-  %w64 = sext i32 %pid to i64
-  %out = call %Val @make_int_val(i64 %w64)
+  %statusrp = call i8* @GC_malloc(i64 32)
+  %statusp = bitcast i8* %statusrp to i32*
+  %w = call i32 @waitpid(i32 %pid, i32* %statusp, i32 0)
+  %status = load i32, i32* %statusp
+  %status64 = sext i32 %status to i64
+  %out = call %Val @make_int_val(i64 %status64)
   ret %Val %out
 }
 
@@ -615,7 +616,7 @@ define void @set(%Env %env, i64 %depth, i64 %offset, %Val %v) {
 define %Env @sub_env(%Env %env, i64 %n) {
   %vsize = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
   %total = mul i64 %vsize, %n
-  %p = call i8* @GC_malloc(i64 %total)
+  %p = call i8* @GC_malloc(i64 %total) ; note: relies on GC_malloc zeroing by default
   %vs = bitcast i8* %p to %Val*
   %1 = insertvalue %Env zeroinitializer, %Val* %vs, 0
   %esize = ptrtoint %Env* getelementptr (%Env, %Env* null, i64 1) to i64

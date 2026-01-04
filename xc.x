@@ -561,7 +561,9 @@
         (println (string-append exe " error"))
         (sys/exit code)))))
 
-(let ((out
+
+(define (main)
+  (let ((out
         (let loop ((args (command-line)))
           (if (null? args)
             "/tmp/exe"
@@ -579,4 +581,6 @@
       (run "/usr/bin/arch" "-arm64" "clang" "-Wno-override-module" "-lgc" "/tmp/both.ll" "-o" out)
       (if (equal? out "/tmp/exe")
         (run out)
-        (sys/exit 0)))))
+        (sys/exit 0))))))
+
+(main)

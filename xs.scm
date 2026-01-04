@@ -1,58 +1,20 @@
-(define (peek-c)
+(define (sys/read fd n)
   (let ((c (peek-char)))
     (if (eof-object? c)
-      c
-      (list->string (list c)))))
-
-(define (read-c)
-  (let ((c (read-char)))
-    (if (eof-object? c)
-      c
-      (list->string (list c)))))
-
-(define eof? eof-object?)
-
-(define (string-number? s)
-  (not (false? (string->number s))))
-
-(define (curry f . args)
-  (lambda foo
-    (apply f (append args foo))))
-
-(define (enumerate f l)
-  (let loop ((i 0)
-             (l l)
-             (out '()))
-    (if (null? l)
-      (reverse out)
-      (loop (+ i 1) (cdr l) (cons (f i (car l)) out)))))
-
-(define (string-list s)
-  (map (lambda (c) (list->string (list c))) (string->list s)))
-
-(define print display)
-(define println (lambda (x)
-                  (print x)
-                  (newline)))
-
-(define (sys/read fd n)
-  (let ((c (read-char)))
-    (if (eof? c)
-      c
-      (list->string (list c)))))
+      ""
+      (string (read-char)))))
 
 (define (sys/write fd s n)
-  (print s)) ; hack
+  (display s)) ; hack
 
 (define sys/exit exit)
-
-(define (sys/execve exe args env)
-  (load-option 'synchronous-subprocess)
-  (exit (run-synchronous-subprocess exe args)))
 
 (define / quotient)
 
 (define (string-length s) (bytevector-length (string->utf8 s)))
+
+(define (string-list s)
+  (map string (string->list s)))
 
 (define function? procedure?)
 
@@ -106,9 +68,6 @@
     number?
     pair?
     peek-c
-    pretty-print
-    print
-    println
     read-c
     reverse
     second
@@ -135,9 +94,9 @@
 
 (define runtime "s")
 (define (xlog v)
-  (print runtime)
-  (print "> ")
-  (pretty-print v)
+  (display runtime)
+  (display "> ")
+  (display v)
   (newline))
 
 (define e (interaction-environment))
@@ -145,9 +104,9 @@
 (define native-eval eval)
 (define (make-env runtime)
   (define (xlog v)
-    (print runtime)
-    (print "> ")
-    (pretty-print v)
+    (display runtime)
+    (display "> ")
+    (display v)
     (newline))
   (list
       (append
