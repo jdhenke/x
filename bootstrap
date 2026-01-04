@@ -2,11 +2,10 @@
 
 set -ev -o pipefail
 
-# compile
+# compile compiler
 cat xc.x xc.x | ./xs -o xc
 
-#cat xc.ll > /tmp/xi.ll
-#cat std.x xi.x | ./xc >> /tmp/xi.ll
-#clang  -lgc /tmp/xi.ll -o ./xi
+# compiler the interpreter
+cat xi.x | ./xc -o xi
 
 echo "DONE"
