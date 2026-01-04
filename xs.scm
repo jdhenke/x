@@ -22,3 +22,9 @@
 
 (define runtime "s")
 
+(define native-with-input-from-file with-input-from-file)
+
+(define (with-input-from-file p f)
+  (let ((out (native-with-input-from-file p f)))
+    out))
+

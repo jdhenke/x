@@ -25,7 +25,7 @@ declare i32 @waitpid(i32, i32*, i32)
 define %Env @make_global_env(i32 %argc, i8** %argv) {
   ; create env with val in it
   %fsize = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
-  %size = mul i64 %fsize, 40
+  %size = mul i64 %fsize, 41
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
@@ -89,12 +89,24 @@ define %Env @make_global_env(i32 %argc, i8** %argv) {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
 
+  ; set runtime
+  call void @store_runtime(%Val* %vals, i64 40)
+
   ; construct global env with native funcs
   %e1 = insertvalue %Env zeroinitializer, %Val* %vals, 0
   %e2 = insertvalue %Env %e1, %Env* null, 1
 
   ; ret env
   ret %Env %e2
+}
+
+@.str.runtime = private unnamed_addr constant [2 x i8] c"c\00"
+
+define void @store_runtime(%Val* %vals, i64 %i) {
+  %vp = getelementptr %Val, %Val* %vals, i64 %i
+  %v = call %Val @make_str_val(i8* @.str.runtime)
+  store %Val %v, %Val* %vp
+  ret void
 }
 
 define void @store_native_func(%Val* %vals, %Val(%Env, %Args)* %f, i64 %i) {

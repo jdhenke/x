@@ -454,6 +454,7 @@
                    (list (symbol "/") 35)
                    (list (symbol "pair?") 36)
                    (list (symbol "command-line") 39)
+                   (list (symbol "runtime") 40)
                    )
                   #f))
 
