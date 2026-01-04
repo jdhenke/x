@@ -115,8 +115,11 @@ define void @store_command_line(%Val* %vals, i64 %i, i32 %argc, i8** %argv) {
   ; make pointer to the one value
   %size = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
   %lvp = call i8* @GC_malloc(i64 %size) ; single value
+  store %Val %lv, %Val* %lvp
+
   ; make the env
   %e = insertvalue %Env zeroinitializer, %Val* %lvp, 0
+
   ; make the func
   %f0 = insertvalue %Func zeroinitializer, %Val(%Env,%Args)* @call_command_line, 0
   %f = insertvalue %Func %f0, %Env %e, 1
