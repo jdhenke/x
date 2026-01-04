@@ -328,3 +328,88 @@
       (list "zip" zip)
     )
     #f))
+
+;;; READ
+
+(define (read-matching f)
+  (apply string-append
+    (let loop ((matched (list)))
+      (let ((c (peek-c)))
+        (if (or (eof? c) (not (f c)))
+          (reverse matched)
+          (loop (cons (read-c) matched)))))))
+
+(define (read-whitespace)
+  (read-matching
+    (lambda (c)
+      (or
+        (equal? c " ")
+        (equal? c "\n"))))
+  (let ((c (peek-c)))
+    (if (eof? c)
+      c
+      (if (equal? (peek-c) ";")
+        (let ()
+          (read-matching (lambda (c) (not (equal? c "\n"))))
+          (read-whitespace))
+        0))))
+
+(define (read-list)
+  (read-c)
+  (let loop ((vals (list)))
+    (read-whitespace)
+    (if (equal? (peek-c) ")")
+      (let ()
+        (read-c)
+        (reverse vals))
+      (let ((val (read)))
+        (if (eof? val)
+          (error "unexpected EOF reading list" (reverse vals))
+          (loop (cons val vals)))))))
+
+(define (read-boolean)
+  (read-c)
+  (equal? (read-c) "t"))
+
+(define (read-number)
+  (string->number (read-matching string-number?)))
+
+(define (read-string)
+  (read-c)
+  (let loop ((cs (list)))
+    (let ((c (read-c)))
+      (if (eof? c) (error "unexpected EOF reading string" (apply string-append (reverse cs))))
+      (if (equal? c "\"")
+        (let () (apply string-append (reverse cs)))
+        (let ()
+          (if (equal? c "\\")
+              (let ()
+                (set! c (let ((ec (read-c)))
+                  (cond ((equal? ec "\"") "\"")
+                        ((equal? ec "n") "\n")
+                        ((equal? ec "\\") "\\")
+                        (#t (error "unrecognized escape" ec))))))
+              #f)
+          (loop (cons c cs)))))))
+
+(define (read-symbol)
+  (symbol
+    (read-matching
+      (lambda (c)
+        (not
+          (or
+            (eof? c)
+            (equal? c ")")
+            (equal? c " ")
+            (equal? c "\n")))))))
+
+(define (read)
+  (read-whitespace)
+  (let ((c (peek-c)))
+    (cond
+      ((eof? c) c)
+      ((equal? c "(")     (read-list))
+      ((equal? c "#")     (read-boolean))
+      ((string-number? c) (read-number))
+      ((equal? c "\"")    (read-string))
+      (#t                 (read-symbol)))))
