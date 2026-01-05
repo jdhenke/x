@@ -426,6 +426,7 @@
                    (list (symbol "sys/write") 6)
                    (list (symbol "sys/read") 8)
                    (list (symbol "sys/fork") 9)
+                   (list (symbol "eq?") 10)
                    (list (symbol "equal?") 10)
                    (list (symbol "sys/wait") 11)
                    (list (symbol "sys/execve") 12)

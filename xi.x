@@ -217,7 +217,6 @@
       (list (symbol "sys/exit") sys/exit)
       (list (symbol "sys/read") sys/read)
       (list (symbol "sys/write") sys/write)
-      (list (symbol "with-input-from-file") with-input-from-file)
       (list (symbol "with-output-to-file") with-output-to-file)
       (list (symbol "run-synchronous-subprocess") run-synchronous-subprocess)
     )
