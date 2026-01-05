@@ -1,39 +1,14 @@
 ;;; EVAL
 
-(define bounce-marker (lambda () #f))
-
-(define (bounce? v)
-  (and (pair? v) (equal? bounce-marker (car v))))
-
-(define (make-bounce f args)
-  (list
-    bounce-marker
-    (lambda ()
-      (apply f args))))
-
-(define (bounce v)
-  ((cadr v)))
-
-(define (trampoline v)
-  (if (bounce? v)
-    (trampoline (bounce v))
-    v))
-
-(define (eval sexpr env tail?)
-  (let ((v (eval-inner sexpr env tail?)))
-    (if tail?
-      v
-      (trampoline v))))
-
-(define (eval-inner sexpr env tail?)
-  (cond ((list? sexpr)    (eval-verb sexpr env tail?))
+(define (eval sexpr env)
+  (cond ((list? sexpr)    (eval-verb sexpr env))
         ((boolean? sexpr) sexpr)
         ((number? sexpr)  sexpr)
         ((string? sexpr)  sexpr)
         ((symbol? sexpr)  (lookup env sexpr))
         (#t (error "unknown sexpr type" sexpr))))
 
-(define (eval-verb sexpr env tail?)
+(define (eval-verb sexpr env)
   (cond ((null? sexpr) sexpr)
         ((equal? (car sexpr) (symbol "define"))  (eval-define sexpr env))
         ((equal? (car sexpr) (symbol "set!"))    (eval-set! sexpr env))
@@ -44,7 +19,7 @@
         ((equal? (car sexpr) (symbol "cond"))    (eval-cond sexpr env))
         ((equal? (car sexpr) (symbol "or"))      (eval-or sexpr env))
         ((equal? (car sexpr) (symbol "and"))     (eval-and sexpr env))
-        (#t                                      (call-func sexpr env tail?))))
+        (#t                                      (call-func sexpr env))))
 
 (define (eval-define sexpr env)
   (if (list? (second sexpr))
@@ -53,7 +28,7 @@
 
 (define (define-var sexpr env)
   (let ((name (second sexpr))
-        (val (eval (third sexpr) env #f)))
+        (val (eval (third sexpr) env)))
     (set-car! env (cons (list name val) (car env)))
     val))
 
@@ -92,7 +67,7 @@
         (if (null? exprs)
           (apply f (reverse vals))
           (let* ((arg-env (list (zip argnames (reverse vals)) env))
-                 (val (eval (cadar exprs) arg-env #f)))
+                 (val (eval (cadar exprs) arg-env)))
             (arg-loop (cdr exprs) (cons val vals))))))))
 
 (define (define-body env self named rest body)
@@ -103,7 +78,7 @@
           (if (null? body)
             last
             (body-loop (cdr body)
-                       (eval (car body) env (null? (cdr body))))))))
+                       (eval (car body) env))))))
     (if self (set-car! env (list (list self f))))
     f))
 
@@ -118,32 +93,32 @@
   (let* ((p (cadr sexpr))
          (t (caddr sexpr))
          (f (if (> (length sexpr) 3) (cadddr sexpr) #f))
-         (pv (eval p env #f)))
-    (eval (if pv t f) env #t)))
+         (pv (eval p env)))
+    (eval (if pv t f) env)))
 
 (define (eval-cond sexpr env)
   (let loop ((conds (cdr sexpr)))
     (if (null? conds)
       #f
-      (if (eval (caar conds) env #f)
-        (eval (cadar conds) env #t)
+      (if (eval (caar conds) env)
+        (eval (cadar conds) env)
         (loop (cdr conds))))))
 
 (define (eval-or sexpr env)
   (let loop ((clauses (cdr sexpr)))
     (cond ((null? clauses) #f)
-          ((eval (car clauses) env #f) #t)
+          ((eval (car clauses) env) #t)
           (#t (loop (cdr clauses))))))
 
 (define (eval-and sexpr env)
   (let loop ((clauses (cdr sexpr)))
     (cond ((null? clauses) #t)
-          ((not (eval (car clauses) env #f)) #f)
+          ((not (eval (car clauses) env)) #f)
           (#t (loop (cdr clauses))))))
 
 (define (eval-set! sexpr env)
   (let ((name (cadr sexpr))
-        (val (eval (caddr sexpr) env #f)))
+        (val (eval (caddr sexpr) env)))
     (let loop ((env env))
       (if (not env)
         (error "set: undefined: " name))
@@ -152,18 +127,15 @@
          (set-cdr! p (list val))
          (loop (cadr env)))))))
 
-(define (call-func sexpr env tail?)
-  (let ((f (eval (car sexpr) env #f))
-        (args (map (lambda (s) (eval s env #f)) (cdr sexpr))))
-    (if tail?
-      (let ()
-        (make-bounce f args))
-      (apply f args))))
+(define (call-func sexpr env)
+  (let ((f (eval (car sexpr) env))
+        (args (map (lambda (s) (eval s env)) (cdr sexpr))))
+      (apply f args)))
 
 (define (lookup env name)
   (let ((defs (car env))
         (parent (cadr env)))
-    (let ((d (find (lambda (d) (eq? (car d) name)) defs)))
+    (let ((d (assq name defs)))
       (if d
         (cadr d)
         (if parent (lookup parent name) (error "undefined" runtime name))))))
@@ -188,6 +160,7 @@
       (list (symbol ">=") >=)
       (list (symbol "append") append)
       (list (symbol "apply") apply)
+      (list (symbol "assq") assq)
       (list (symbol "boolean?") boolean?)
       (list (symbol "car") car)
       (list (symbol "cdr") cdr)
@@ -230,7 +203,7 @@
       (if (eof? sexpr)
         #f
         (let ()
-          (eval sexpr global #f)
+          (eval sexpr global)
           (loop))))))
 
 (define (main)
@@ -239,7 +212,7 @@
       (if (null? std)
         #f
         (let ()
-          (eval (car std) global #f)
+          (eval (car std) global)
           (loop (cdr std))))))
   (repl))
 

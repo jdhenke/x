@@ -205,6 +205,11 @@
           (loop (cdr l))
           #f)))))
 
+(define assq
+  (if (function? assq)
+    assq
+    (lambda (k l) (find (lambda (r) (eq? (car r) k)) l))))
+
 ;;; hack around syscalls
 
 (define read-file
