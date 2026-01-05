@@ -176,7 +176,6 @@
       (list (symbol "null?") null?)
       (list (symbol "number?") number?)
       (list (symbol "pair?") pair?)
-      (list (symbol "read-file") read-file)
       (list (symbol "runtime") runtime)
       (list (symbol "set-car!") set-car!)
       (list (symbol "set-cdr!") set-cdr!)
@@ -190,6 +189,7 @@
       (list (symbol "sys/exit") sys/exit)
       (list (symbol "sys/read") sys/read)
       (list (symbol "sys/write") sys/write)
+      (list (symbol "with-input-from-file") with-input-from-file)
       (list (symbol "with-output-to-file") with-output-to-file)
       (list (symbol "run-synchronous-subprocess") run-synchronous-subprocess)
     )
@@ -207,13 +207,12 @@
           (loop))))))
 
 (define (main)
-  (let ((std (read-file "std.x")))
-    (let loop ((std std))
-      (if (null? std)
-        #f
-        (let ()
-          (eval (car std) global)
-          (loop (cdr std))))))
+  (let loop ((std (read-std)))
+    (if (null? std)
+      #f
+      (let ()
+        (eval (car std) global)
+        (loop (cdr std)))))
   (repl))
 
 (main)

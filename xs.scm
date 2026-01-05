@@ -21,15 +21,3 @@
   (map string (string->list s)))
 
 (define runtime "s")
-
-(define native-read-string read-string)
-(define native-read read)
-
-(define (read-file-no-pairs filename)
-  (let* ((text (call-with-input-file filename native-read-string))
-         (port (open-input-string text)))
-    (let loop ((exprs '()))
-      (let ((expr (native-read port)))
-        (if (eof-object? expr)
-          (reverse exprs)
-          (loop (cons expr exprs)))))))

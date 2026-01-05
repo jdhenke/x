@@ -212,25 +212,27 @@
 
 ;;; hack around syscalls
 
-(define read-file
-  (if (function? read-file)
-    read-file
-    (lambda (p)
+(define with-input-from-file
+  (if (function? with-input-from-file)
+    (let ((orig with-input-from-file))
+      (lambda (p f)
+        (define old _peek-c)
+        (set! _peek-c #f)
+        (define out (orig p f)) ; call
+        (set! _peek-c old)
+        out))
+    (lambda (p f)
       (let ((fd (sys/open p 0)))
         (let ((original (sys/dup 0)))
           (sys/dup2 fd 0)
           (sys/close fd)
           (define old _peek-c)
           (set! _peek-c #f)
-          (let loop ((out (list)))
-            (let ((sexpr (read)))
-              (if (eof? sexpr)
-                (let ()
-                  (set! _peek-c old)
-                  (sys/dup2 original 0)
-                  (sys/close original)
-                  (reverse out))
-                (loop (cons sexpr out))))))))))
+          (define out (f)) ; call
+          (set! _peek-c old)
+          (sys/dup2 original 0)
+          (sys/close original)
+          out)))))
 
 (define with-output-to-file
   (if (function? with-output-to-file)
@@ -253,6 +255,15 @@
         (if (= 0 pid)
           (sys/execve exe (cons exe args) (list))
           (sys/wait pid))))))
+
+(define (read-std)
+  (with-input-from-file "std.x"
+    (lambda ()
+      (let loop ((out (list)))
+        (let ((sexpr (read)))
+          (if (eof? sexpr)
+            (reverse out)
+            (loop (cons sexpr out))))))))
 
 ;;; READ
 
