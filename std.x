@@ -7,7 +7,7 @@
       t
       (loop (cdr l) (cons (car l) t)))))
 
-(define (append . args)
+(define append (lambda args
   (let arglp ((args args)
                (out (list)))
     (if (null? args)
@@ -17,11 +17,13 @@
                           (out out))
                (if (null? l)
                  out
-                 (itemlp (cdr l) (cons (car l) out))))))))
+                 (itemlp (cdr l) (cons (car l) out)))))))))
 
-(define (curry f . largs)
+(define curry (lambda args
+  (define f (car args))
+  (define largs (cdr args))
   (lambda rargs
-    (apply f (append largs rargs))))
+    (apply f (append largs rargs)))))
 
 (define (caar x) (car (car x)))
 (define (cadr x) (car (cdr x)))
@@ -95,10 +97,10 @@
 (define (newline)
   (print "\n"))
 
-(define (error . args)
+(define error (lambda args
   (println "ERROR")
   (map println args)
-  (sys/exit 1))
+  (sys/exit 1)))
 
 (define (enumerate f l)
   (let loop ((i 0)
@@ -118,12 +120,12 @@
 (define (third l) (caddr l))
 (define (last l) (first (reverse l)))
 
-(define (zip . ls)
+(define zip (lambda ls
   (let loop ((ls ls)
              (out (list)))
     (if (find null? ls)
       (reverse out)
-      (loop (map cdr ls) (cons (map car ls) out)))))
+      (loop (map cdr ls) (cons (map car ls) out))))))
 
 (define (filter f l)
   (let loop ((l l)
@@ -205,28 +207,25 @@
 
 ;;; hack around syscalls
 
-(define with-input-from-file
-  (if (function? with-input-from-file)
-    (let ()
-      (define orig with-input-from-file)
-      (lambda (p f)
-          (define old _peek-c)
-          (set! _peek-c #f)
-          (let ((out (orig p f)))
-            (set! _peek-c old)
-            out)))
-    (lambda (p f)
+(define read-file
+  (if (function? read-file)
+    read-file
+    (lambda (p)
       (let ((fd (sys/open p 0)))
         (let ((original (sys/dup 0)))
           (sys/dup2 fd 0)
           (sys/close fd)
           (define old _peek-c)
           (set! _peek-c #f)
-          (let ((out (f)))
-            (set! _peek-c old)
-            (sys/dup2 original 0)
-            (sys/close original)
-            out))))))
+          (let loop ((out (list)))
+            (let ((sexpr (read)))
+              (if (eof? sexpr)
+                (let ()
+                  (set! _peek-c old)
+                  (sys/dup2 original 0)
+                  (sys/close original)
+                  (reverse out))
+                (loop (cons sexpr out))))))))))
 
 (define with-output-to-file
   (if (function? with-output-to-file)

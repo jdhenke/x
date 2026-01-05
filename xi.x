@@ -203,6 +203,7 @@
       (list (symbol "null?") null?)
       (list (symbol "number?") number?)
       (list (symbol "pair?") pair?)
+      (list (symbol "read-file") read-file)
       (list (symbol "runtime") runtime)
       (list (symbol "set-car!") set-car!)
       (list (symbol "set-cdr!") set-cdr!)
@@ -234,22 +235,13 @@
           (loop))))))
 
 (define (main)
-  (with-input-from-file "std.x"
-    (lambda ()
-      (println (list runtime "reading std.x"))
-      (define sexprs
-        (let loop ((out (list)))
-          (let ((sexpr (read)))
-            (if (eof? sexpr)
-              (reverse out)
-              (loop (cons sexpr out))))))
-      (println (list runtime "evaluating std.x"))
-      (let loop ((sexprs sexprs))
-        (if (null? sexprs)
-          #f
-          (let ()
-            (eval (car sexprs) global #f)
-            (loop (cdr sexprs)))))))
+  (let ((std (read-file "std.x")))
+    (let loop ((std std))
+      (if (null? std)
+        #f
+        (let ()
+          (eval (car std) global #f)
+          (loop (cdr std))))))
   (repl))
 
 (main)

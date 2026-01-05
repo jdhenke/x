@@ -465,18 +465,12 @@
         (reverse all)
         (loop (cons sexpr all))))))
 
-(define (std-sexprs)
-  (with-input-from-file "std.x"
-    (lambda ()
-      (collect-sexprs))))
-
 (define (run exe . args)
   (let ((code (run-synchronous-subprocess exe args)))
     (if (not (= code 0))
       (let ()
         (println (string-append exe " error"))
         (sys/exit code)))))
-
 
 (define (main)
   (let ((out
@@ -487,8 +481,9 @@
               (cadr args)
               (loop (cdr args))))))
       (ll "/tmp/out.ll"))
-  (let ((main-sexprs (collect-sexprs)))
-    (let ((all (append (std-sexprs) main-sexprs)))
+  (let ((main-sexprs (collect-sexprs))
+        (std (read-file "std.x")))
+    (let ((all (append std main-sexprs)))
       (emit-main all global)
       (with-output-to-file ll
         (lambda ()

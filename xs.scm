@@ -22,9 +22,14 @@
 
 (define runtime "s")
 
-(define native-with-input-from-file with-input-from-file)
+(define native-read-string read-string)
+(define native-read read)
 
-(define (with-input-from-file p f)
-  (let ((out (native-with-input-from-file p f)))
-    out))
-
+(define (read-file-no-pairs filename)
+  (let* ((text (call-with-input-file filename native-read-string))
+         (port (open-input-string text)))
+    (let loop ((exprs '()))
+      (let ((expr (native-read port)))
+        (if (eof-object? expr)
+          (reverse exprs)
+          (loop (cons expr exprs)))))))
