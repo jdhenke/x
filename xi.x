@@ -192,6 +192,7 @@
       (list (symbol "car") car)
       (list (symbol "cdr") cdr)
       (list (symbol "cons") cons)
+      (list (symbol "command-line") command-line)
       (list (symbol "eq?") eq?)
       (list (symbol "equal?") equal?)
       (list (symbol "function?") function?)
