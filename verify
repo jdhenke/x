@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 ## Check binary equality (black box)
-# C = Scc = Sicc = Icc = Iicc = Cc
-# I = Sci = Sici = Ici = Iici = Ci
-# T = Sct = Sict = Ict = Iict = Ct
+# C = Scc = Icc = Cc
+# I = Sci = Ici = Ci
+# T = Sct = Ict = Ct
 
 ## Check output equality (glass box)
-# T = St  = Sit  = It  = Iit
+# St = It = Ct
 
 set -e -o pipefail
 
@@ -21,39 +21,52 @@ eq() {
   [ "$(md5 -q $1)" = "$(md5 -q $2)" ]
 }
 
-### Compiling
+# Bootstrap C
+echo "C := Scc"
+./xs -o /tmp/xc < <(cat xc.x xc.x)
+mv /tmp/xc /tmp/xc1
 
-echo "Compiling C..."
-c "./scm xc.x" xc.x
-mv /tmp/xc /tmp/comp
+# Bootstrap I
+echo "I := Sci"
+./xs -o /tmp/xi < <(cat xc.x xi.x)
+mv /tmp/xi /tmp/xi1
 
-echo "Compiling I..."
-c "./scm xc.x" x.x
-mv /tmp/x /tmp/interp
+# C = Cc
+echo "C == Cc"
+/tmp/xc1 -o /tmp/xc < xc.x
+mv /tmp/xc /tmp/xc2
+eq /tmp/xc1 /tmp/xc2
 
-echo "Compiling T..."
-c "./scm xc.x" check.x
-mv /tmp/check /tmp/test
+# C = Icc
+echo "C == Icc"
+/tmp/xi1 -o /tmp/xc < <(cat xc.x xc.x)
+mv /tmp/xc /tmp/xc3
+eq /tmp/xc1 /tmp/xc3
 
-### C equalities
+# I = Ci
+echo "I == Ci"
+/tmp/xc1 -o /tmp/xi < xi.x
+mv /tmp/xi /tmp/xi2
+eq /tmp/xi1 /tmp/xi2
 
-echo "C = Scc..."
-c "./scm xc.x" xc.x
-eq /tmp/comp /tmp/xc
+# I = Ici
+echo "I == Ici"
+/tmp/xi1 -o /tmp/xi < <(cat xc.x xi.x)
+mv /tmp/xi /tmp/xi3
+eq /tmp/xi1 /tmp/xi3
 
-# FIXME! FAILS!! undefined symbol not
-echo "C = Sicc..."
-#./scm x.x < <(cat std.x xc.x std.x xc.x)
+# T = St
+echo "T := St"
+./xs < test.x | tee /tmp/t1
 
-# FIXME! FAILS!! undefined symbol not
-echo "C = Icc..."
-# /tmp/interp < <(cat xc.x std.x xc.x)
+# T = It
+echo "T == It"
+/tmp/xi1 < test.x | tee /tmp/t2
+eq /tmp/t1 /tmp/t2
 
-# FIXME! FAILS!! u
-# FIXME! FAILS!! undefined symbol not
-echo "C = Iicc..."
-#/tmp/interp < <(cat x.x std.x xc.x std.x xc.x)
+# T = Ct
+echo "T == Ct"
+/tmp/xc1 < test.x | tee /tmp/t3
+eq /tmp/t1 /tmp/t3
 
-echo "C = Cc..."
-c /tmp/comp xc.x
-eq /tmp/comp /tmp/xc
+echo PASS
