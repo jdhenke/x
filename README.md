@@ -6,8 +6,8 @@ A minimal, eXecutable, self hosted lisp.
 
 x is a programming language. This repo makes x code eXecutable in a few ways.
 
-It is a subset of [MIT Scheme](https://www.gnu.org/software/mit-scheme/)'s syntax
-and has its own minimal standard library.
+It is a subset of [MIT Scheme](https://www.gnu.org/software/mit-scheme/)'s
+syntax and has its own minimal standard library.
 
 - `./xs` adapts MIT scheme to match the x runtime.
 
@@ -16,7 +16,8 @@ Further, x itself is sufficient to:
 - `xi.x` - write its own interpreter
 - `xc.x` - write its own compiler
 - `check.x` - pass unit tests for each language feature
-- `verify.x` - verify that chaining self hosted runtimes produces a stable "fixed point"
+- `verify.x` - verify that chaining self hosted runtimes produces a stable
+  "fixed point"
 - `aoc/` - solve all 2025 advent of code puzzles
 
 ## Setup
@@ -55,31 +56,17 @@ for x in ./xs ./xi ./xc; do
 done
 ```
 
-To have `xc` only compile and not run, using `./xc -o output.bin`.
+To have `xc` only compile and not run, using `./xc -o output.bin < code.x`.
 
 ### Verify
 
-To verify chaining the runtimes together in different orders produces the same results, run:
+To verify that chaining the runtimes together in different orders produces the
+same results, run:
 
 ```bash
 ./verify
 ```
 
-Note: for performance reasons, this limits to chains that only run two nested interpreters.
-
-To verify a particular chain of:
-
-- s (scheme x interpeter)
-- i (native x interpreter)
-- c (native x compiler)
-- t (x tests)
-
-Run `./verify` with the chain string as an argument e.g.:
-
-```bash
-./verify sict
-./verify scccc
-```
-
-Valid chains match the regex: `^s(c|i)*(t|(c(i|c|t)))$`
+Note: for performance reasons, this limits to chains that do not run nested
+interpeters.
 
