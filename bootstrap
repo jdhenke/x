@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
-set -ev -o pipefail
+set -e -o pipefail
 
 # compile compiler
+echo "Bootstraping compiler to ./xc"
 cat xc.x xc.x | ./xs -o xc
 
 # compiler the interpreter
+echo "Compiling interpreter to ./xi"
 cat xi.x | ./xc -o xi
 
 echo "DONE"

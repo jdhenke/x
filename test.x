@@ -148,16 +148,6 @@
 (define b (list 4 5 6))
 (test (list 1 2 3 4 5 6) (append a b))
 
-
-
-(define (find f l)
-  (let loop ((l l))
-    (if (null? l)
-      #f
-      (if (f (car l))
-        (car l)
-        (loop (cdr l))))))
-
 (define (memo f)
   (let ((m (list)))
     (lambda args
@@ -168,24 +158,11 @@
             (set! m (cons (list args r) m))
             r))))))
 
-(define (reverse l)
-  (let loop ((l l) (t (list)))
-    (if (null? l)
-      t
-      (loop (cdr l) (cons (car l) t)))))
-
-(define (map f l)
-  (let loop ((l l)
-             (out (list)))
-    (if (null? l)
-      (reverse out)
-      (loop (cdr l) (cons (f (car l)) out)))))
-
 (define (fib n)
   (if (< n 3)
     1
     (let ()
-      (apply + (map fib (map (curry - n) (list 1 2)))))))
+      (apply + (map fib (map (curry - n) (list 1 2))))))) ; purposefully crazy
 
 (set! fib (memo fib))
 
@@ -195,36 +172,6 @@
 (test 3 (fib 4))
 (test 5 (fib 5))
 (test 8 (fib 6))
-;(test 12586269025 (fib 50))
-
-
-; tail call optimization
-;(define (count-to-infinity n)
-;  (if (equal? n 0)
-;      "done"
-;      (count-to-infinity (- n 1))))
-;(count-to-infinity 100000) ;; interp too slow
-
-
-;(let ((fd (open "/tmp/foo.txt" 1537 438)))
-;  (write fd "bar" 3)
-;  (close fd))
-;
-;(let ((fd (open "/tmp/foo.txt" 0)))
-;  (println (read fd 3))
-;  (close))
-;
-;(let ((pid (fork)))
-;  (if (equal? pid 0)
-;    (let ()
-;      (println "c: listing cwd...")
-;      (execve "/bin/ls" (list "/bin/ls") (list))
-;      (println "c: error: execve failed"))
-;    (let ()
-;      (println "p: waiting...")
-;      (wait pid)
-;      (println "p: done")))
-;  pid)
 
 (test "420" (number->string 420))
 (test "0" (number->string 0))
