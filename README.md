@@ -13,12 +13,10 @@ syntax and has its own minimal standard library.
 
 Further, x itself is sufficient to:
 
-- `xi.x` - write its own interpreter
-- `xc.x` - write its own compiler
-- `check.x` - pass unit tests for each language feature
-- `verify.x` - verify that chaining self hosted runtimes produces a stable
-  "fixed point"
-- `aoc/` - solve all 2025 advent of code puzzles
+- write its own interpreter (`xi.x`)
+- write its own compiler (`xc.x`)
+- pass unit tests for each language feature (`test.x`)
+- solve Advent of Code puzzles (`aoc/`)
 
 ## Setup
 
@@ -56,12 +54,19 @@ for x in ./xs ./xi ./xc; do
 done
 ```
 
-To have `xc` only compile and not run, using `./xc -o output.bin < code.x`.
+To have `xc` only compile and not run, use `-o <path>` e.g.
+
+```bash
+./xc -o output.bin < code.x
+```
 
 ### Verify
 
+Because the x interpreter and compiler are written themselves in x, one can
+chain them together after bootstrapping with the scheme runtime.
+
 To verify that chaining the runtimes together in different orders produces the
-same results, run:
+same exact results, run:
 
 ```bash
 ./verify
@@ -69,4 +74,16 @@ same results, run:
 
 Note: for performance reasons, this limits to chains that do not run nested
 interpeters.
+
+## Examples: Advent of Code
+
+See `./aoc` for solutions to Advent of Code puzzles written in x.
+
+You can run with any runtime e.g.:
+
+```bash
+./xs < ./aoc/2025/day1.x
+./xi < ./aoc/2025/day1.x
+./xc < ./aoc/2025/day1.x
+```
 
