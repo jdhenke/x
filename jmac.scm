@@ -1,0 +1,6 @@
+(define jmac (car (read-file "jmac.x")))
+(define jmac1 (eval jmac (interaction-environment)))
+(pretty-print (jmac1 'a '((a 42))))
+(newline)
+;(define jmac2 (jmac1 jmac '()))
+;(display (jmac2 '(cond (a 1) (#t 2))))
