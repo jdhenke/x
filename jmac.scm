@@ -9,25 +9,13 @@
               (list 'car car)
               (list 'cdr cdr)))
 
-(display "JMAC 1")
+(display "JMC 1")
 (newline)
 (define jmac1 (eval jmac (interaction-environment)))
-(pretty-print (jmac1 '((lambda (a c) (cons a (cons c (quote ())))) b b) (append '((b 52)) env)))
-(newline)
 
-(display "JMAC 2")
+(display "JMC 2")
 (newline)
 (define jmac2 (jmac1 jmac env))
-(pretty-print (jmac2 'b '((b 52))))
-(newline)
-(pretty-print (jmac2 '((lambda (a c) (cons a (cons c (quote ())))) b b) (append '((b 52)) env)))
-(newline)
-
-(display "JMAC 3")
-(newline)
-(define jmac3 (jmac2 jmac env))
-(pretty-print (jmac3 '((lambda (a c) (cons a (cons c (quote ())))) b b) (append '((b 52)) env)))
-(newline)
 
 (define fib
   (quote
@@ -55,13 +43,13 @@
                          (list '+ +))
                        env))
 
-(display "JMAC1 - FIB 10")
+(display "JMC1 - FIB 10")
 (newline)
 (define j1fib (jmac1 fib fibenv))
 (pretty-print (j1fib 10))
 (newline)
 
-(display "JMAC2 - FIB 10")
+(display "JMC2 - FIB 10")
 (newline)
 (define j2fib (jmac2 fib fibenv))
 (pretty-print (j2fib 10))
