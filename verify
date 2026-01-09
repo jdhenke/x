@@ -18,41 +18,35 @@ c() {
 }
 
 eq() {
-  [ "$(md5 -q $1)" = "$(md5 -q $2)" ]
+  [ "$(md5 -q $1)" = "$(md5 -q $2)" ] || { echo "FAIL: NOT EQUAL"; exit 1; }
 }
 
 # Bootstrap C
 echo "C := Scc"
-./xs -o /tmp/xc < <(cat xc.x xc.x)
-mv /tmp/xc /tmp/xc1
+./xs < <(cat xc.x xc.x) > /tmp/xc1
 
 # Bootstrap I
 echo "I := Sci"
-./xs -o /tmp/xi < <(cat xc.x xi.x)
-mv /tmp/xi /tmp/xi1
+./xs < <(cat xc.x xi.x) > /tmp/xi1
 
 # C = Cc
 echo "C == Cc"
-/tmp/xc1 -o /tmp/xc < xc.x
-mv /tmp/xc /tmp/xc2
+/tmp/xc1 < xc.x > /tmp/xc2
 eq /tmp/xc1 /tmp/xc2
 
 # C = Icc
 echo "C == Icc"
-/tmp/xi1 -o /tmp/xc < <(cat xc.x xc.x)
-mv /tmp/xc /tmp/xc3
+/tmp/xi1 < <(cat xc.x xc.x) > /tmp/xc3
 eq /tmp/xc1 /tmp/xc3
 
 # I = Ci
 echo "I == Ci"
-/tmp/xc1 -o /tmp/xi < xi.x
-mv /tmp/xi /tmp/xi2
+/tmp/xc1 < xi.x > /tmp/xi2
 eq /tmp/xi1 /tmp/xi2
 
 # I = Ici
 echo "I == Ici"
-/tmp/xi1 -o /tmp/xi < <(cat xc.x xi.x)
-mv /tmp/xi /tmp/xi3
+/tmp/xi1 < <(cat xc.x xi.x) > /tmp/xi3
 eq /tmp/xi1 /tmp/xi3
 
 # T = St

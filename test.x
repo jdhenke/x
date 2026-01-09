@@ -189,8 +189,7 @@
 (test #t (string-number? "1"))
 (test #t (string-number? "0"))
 
-(if pass
-  (println "PASS")
+(if (not pass)
   (let ()
     (println "FAIL")
     (sys/exit 1)))
