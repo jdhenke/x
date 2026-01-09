@@ -1,4 +1,4 @@
-(define jmac (car (read-file "jmac.x")))
+(define jmc (car (read-file "jmc.x")))
 
 (define env (list
               (list '#t #t)
@@ -11,11 +11,11 @@
 
 (display "JMC 1")
 (newline)
-(define jmac1 (eval jmac (interaction-environment)))
+(define jmc1 (eval jmc (interaction-environment)))
 
 (display "JMC 2")
 (newline)
-(define jmac2 (jmac1 jmac env))
+(define jmc2 (jmc1 jmc env))
 
 (define fib
   (quote
@@ -45,13 +45,13 @@
 
 (display "JMC1 - FIB 10")
 (newline)
-(define j1fib (jmac1 fib fibenv))
+(define j1fib (jmc1 fib fibenv))
 (pretty-print (j1fib 10))
 (newline)
 
 (display "JMC2 - FIB 10")
 (newline)
-(define j2fib (jmac2 fib fibenv))
+(define j2fib (jmc2 fib fibenv))
 (pretty-print (j2fib 10))
 (newline)
 
