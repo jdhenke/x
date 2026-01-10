@@ -173,6 +173,11 @@
 (test 5 (fib 5))
 (test 8 (fib 6))
 
+(let loop ((i 0))
+  (if (< i 10000)
+    (loop (+ i 1))
+    #t))
+
 (test "420" (number->string 420))
 (test "0" (number->string 0))
 (test 420 (string->number "420"))

@@ -2,7 +2,7 @@
 
 (define (print x)
   (cond
-    ((string? x) (sys/write 1 x (string-length x)))
+    ((string? x)    (sys/write 1 x (string-length x)))
     ((symbol? x)    (print (string x)))
     ((boolean? x)   (print (if x "#t" "#f")))
     ((number? x)    (print (number->string x)))
