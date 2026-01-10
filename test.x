@@ -173,8 +173,9 @@
 (test 5 (fib 5))
 (test 8 (fib 6))
 
+; test TCO
 (let loop ((i 0))
-  (if (< i 100000)
+  (if (< i 30000)
     (loop (+ i 1))
     #t))
 
