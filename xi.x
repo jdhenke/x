@@ -232,7 +232,12 @@
                     path
                     (lambda ()
                       (func (lambda (v) v))))))
-          (list (symbol "with-output-to-file") with-output-to-file)
+          (list (symbol "with-output-to-file")
+                (lambda (path func)
+                  (with-output-to-file
+                    path
+                    (lambda ()
+                      (func (lambda (v) v))))))
           (list (symbol "run-synchronous-subprocess") run-synchronous-subprocess)
         ))
       #f)))
