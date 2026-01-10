@@ -174,7 +174,7 @@
 (test 8 (fib 6))
 
 (let loop ((i 0))
-  (if (< i 10000)
+  (if (< i 100000)
     (loop (+ i 1))
     #t))
 

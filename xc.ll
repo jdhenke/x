@@ -384,7 +384,8 @@ entry:
   %n = call i64 @list_length(%List* %lp)
   %n1 = add i64 %n, 1
   %size = mul i64 %n1, 64
-  %out = call i8** @GC_malloc(i64 %size)
+  %outr = call i8* @GC_malloc(i64 %size)
+  %out = bitcast i8* %outr to i8**
   br label %header
 header:
   %head = phi %List* [ %lp, %entry], [ %cdr, %body ]
