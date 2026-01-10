@@ -20,6 +20,7 @@
         ((equal? (car sexpr) (symbol "cond"))    (eval-cond sexpr env k))
         ((equal? (car sexpr) (symbol "or"))      (eval-or sexpr env k))
         ((equal? (car sexpr) (symbol "and"))     (eval-and sexpr env k))
+        ((equal? (car sexpr) (symbol "call/cc")) (eval-call/cc sexpr env k))
         (#t                                      (call-func sexpr env k))))
 
 (define (eval-define sexpr env k)
@@ -87,9 +88,7 @@
         (define (body-loop-cps body)
           (cond ((null? body) (k #f))
                 ((null? (cdr body)) (eval (car body) env k))
-                (#t (let ()
-                      (eval (car body) env (lambda (v) #f)) ; discard
-                      (body-loop-cps (cdr body))))))
+                (#t (eval (car body) env (lambda (v) (body-loop-cps (cdr body)))))))
         (body-loop-cps body)))
     (if self (set-car! env (list (list self f))))
     f))
@@ -160,6 +159,11 @@
                                         (set! args (append args (list argv))))))
                     (cdr sexpr))
           (apply f (cons k args)))))
+
+(define (eval-call/cc sexpr env k)
+  (eval (cadr sexpr) env
+        (lambda (f)
+          (f k (lambda (k2 val) (k val))))))
 
 (define (lookup env name)
   (let ((defs (car env))
