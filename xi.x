@@ -154,11 +154,12 @@
   (eval (car sexpr) env
         (lambda (f)
           (define args (list))
-          (for-each (lambda (s) (eval s env
-                                      (lambda (argv)
-                                        (set! args (append args (list argv))))))
-                    (cdr sexpr))
-          (apply f (cons k args)))))
+          (let loop ((exprs (cdr sexpr) (args (list))))
+            (if (null? exprs)
+              (apply f (cons k (reverse args)))
+              (eval (car exprs) env
+                    (lambda (argv)
+                      (loop (cdr exprs) (cons argv args)))))))))
 
 (define (eval-call/cc sexpr env k)
   (eval (cadr sexpr) env
