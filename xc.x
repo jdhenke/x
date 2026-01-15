@@ -473,6 +473,7 @@
                    (list (symbol "command-line") 39)
                    (list (symbol "runtime") 40)
                    (list (symbol "random") 41)
+                   (list (symbol "string<?") 42)
                    )
                   #f))
 

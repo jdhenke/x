@@ -4,6 +4,13 @@
 
 ; HACK: not implemented by xs, but not used either
 
+(define (error . args)
+  (println "ERROR")
+  (map println args)
+  (sys/exit 1))
+
+(define error/cps (cps error))
+
 (define */cps (cps *))
 (define +/cps (cps +))
 (define -/cps (cps -))
@@ -36,7 +43,7 @@
 (define string-list/cps (cps string-list))
 (define string-number?/cps (cps string-number?))
 (define string/cps (cps string))
-(define string<?/cps (cps string<?)) ;; FIXME: compiler
+(define string<?/cps (cps string<?))
 (define string?/cps (cps string?))
 (define symbol/cps (cps symbol))
 (define symbol?/cps (cps symbol?))
@@ -54,7 +61,6 @@
 (define (apply/cps k f l)
   (apply f (cons k l)))
 
-;;; FIXME: sort in stdlib
 (define (sort/cps k l f)
   (k (sort l (lambda (a b) (f (lambda (r) r) a b)))))
 

@@ -147,6 +147,17 @@
     (car l)
     (list-ref (cdr l) (- i 1))))
 
+(define (sort lst less-than?)
+  (if (or (null? lst) (null? (cdr lst)))
+      lst
+      (let ((pivot (car lst))
+            (rest (cdr lst)))
+        (let ((smaller (filter (lambda (x) (less-than? x pivot)) rest))
+              (greater (filter (lambda (x) (not (less-than? x pivot))) rest)))
+          (append (sort smaller less-than?)
+                  (list pivot)
+                  (sort greater less-than?))))))
+
 ;;; STRINGS
 
 (define n-to-s
@@ -390,7 +401,7 @@
   (let loop ((sexprs sexprs) (out (reverse (defs sexprs))))
     (if (null? sexprs)
       (reverse out)
-      (loop (cdr sexprs) (cons (list (list 'lambda '(_k) (cps (car sexprs) '_k)) '(lambda (v) (println v))) out)))))
+      (loop (cdr sexprs) (cons (list (list 'lambda '(_k) (cps (car sexprs) '_k)) '(lambda (v) #f)) out)))))
 
 (define (defs sexprs)
   (map (lambda (sexpr) (list 'define (cps-name (if (list? (second sexpr)) (caadr sexpr) (cadr sexpr))) #f))
