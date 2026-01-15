@@ -2,6 +2,8 @@
   (lambda (k . args)
     (k (apply f args))))
 
+; HACK: not implemented by xs, but not used either
+
 (define */cps (cps *))
 (define +/cps (cps +))
 (define -/cps (cps -))
@@ -19,18 +21,22 @@
 (define length/cps (cps length))
 (define list/cps (cps list))
 (define list?/cps (cps list?))
+(define make-random-state/cps (cps make-random-state))
 (define modulo/cps (cps modulo))
 (define null?/cps (cps null?))
 (define number->string/cps (cps number->string))
 (define number?/cps (cps number?))
 (define println/cps (cps println))
+(define random/cps (cps random))
 (define reverse/cps (cps reverse))
+(define set-car!/cps (cps set-car!))
 (define string->number/cps (cps string->number))
 (define string-append/cps (cps string-append))
 (define string-length/cps (cps string-length))
 (define string-list/cps (cps string-list))
 (define string-number?/cps (cps string-number?))
 (define string/cps (cps string))
+(define string<?/cps (cps string<?)) ;; FIXME: compiler
 (define string?/cps (cps string?))
 (define symbol/cps (cps symbol))
 (define symbol?/cps (cps symbol?))
@@ -44,3 +50,11 @@
 (define sys/read/cps (cps sys/read))
 (define sys/wait/cps (cps sys/wait))
 (define sys/write/cps (cps sys/write))
+
+(define (apply/cps k f l)
+  (apply f (cons k l)))
+
+;;; FIXME: sort in stdlib
+(define (sort/cps k l f)
+  (k (sort l (lambda (a b) (f (lambda (r) r) a b)))))
+

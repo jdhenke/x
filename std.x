@@ -142,6 +142,11 @@
     assq
     (lambda (k l) (find (lambda (r) (eq? (car r) k)) l))))
 
+(define (list-ref l i)
+  (if (= i 0)
+    (car l)
+    (list-ref (cdr l) (- i 1))))
+
 ;;; STRINGS
 
 (define n-to-s
@@ -260,6 +265,13 @@
 
 (define (read-std)
   (read-file "std.x"))
+
+;;; RAND
+
+(define make-random-state
+  (if (function? make-random-state)
+    make-random-state
+    (lambda args #f)))
 
 ;;; READ
 
@@ -386,13 +398,17 @@
                sexprs)))
 
 
-(define (escape s)
-  (string-append "\""
-                 (cond ((equal? s "\\") "\\\\")
-                       ((equal? s "\"") "\\\"")
-                       ((equal? s "\n") "\\n")
-                       (#t s))
-                 "\""))
+(define (escape sexpr)
+  (cond
+    ((string? sexpr)
+     (string-append "\""
+                    (cond ((equal? sexpr "\\") "\\\\")
+                          ((equal? sexpr "\"") "\\\"")
+                          ((equal? sexpr "\n") "\\n")
+                          (#t sexpr))
+                    "\""))
+    ((list? sexpr) (map escape sexpr))
+    (#t sexpr)))
 
 (define (cps sexpr kexpr)
   (cond
@@ -403,7 +419,7 @@
     ((not (list? sexpr)) (error "cps: unknown sexpr: " sexpr))
     ((null? sexpr)    (list kexpr ''()))
     ((equal? (car sexpr) (symbol "define"))  (cps-define sexpr kexpr))
-    ((equal? (car sexpr) (symbol "quote"))   (list kexpr sexpr))
+    ((equal? (car sexpr) (symbol "quote"))   (list kexpr (escape sexpr)))
     ((equal? (car sexpr) (symbol "set!"))    (cps-set! sexpr kexpr))
     ((equal? (car sexpr) (symbol "lambda"))  (cps-lambda sexpr kexpr))
     ((equal? (car sexpr) (symbol "let"))     (cps-let sexpr kexpr))
@@ -558,4 +574,12 @@
               (list 'lambda (list inner-pv) (cps (car args) (list 'lambda (list rv) (list out (list 'cons rv inner-pv))))))))))
 
 (define (cps-call/cc sexpr kexpr)
-  (error "call/cc not implemented"))
+  (define fv (gp))
+  (define rv (gp))
+  (define kv (gp))
+  (list
+    (list 'lambda (list kv)
+          (cps (second sexpr)
+               (list 'lambda (list fv)
+                     (list fv kv (list 'lambda (list '_ rv) (list kv rv))))))
+    kexpr))

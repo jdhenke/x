@@ -21,3 +21,11 @@
   (map string (string->list s)))
 
 (define runtime "s")
+
+(define sys/close (lambda args (error "not implemented")))
+(define sys/dup (lambda args (error "not implemented")))
+(define sys/dup2 (lambda args (error "not implemented")))
+(define sys/execve (lambda args (error "not implemented")))
+(define sys/fork (lambda args (error "not implemented")))
+(define sys/open (lambda args (error "not implemented")))
+(define sys/wait (lambda args (error "not implemented")))
