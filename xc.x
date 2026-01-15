@@ -1,12 +1,14 @@
 ;;; EMIT
 
 (define (emit sexpr env)
+  (println sexpr)
   (cond ((boolean? sexpr)              (emit-bool sexpr env))
         ((number? sexpr)               (emit-number sexpr env))
         ((string? sexpr)               (emit-string sexpr env))
         ((symbol? sexpr)               (emit-lookup-symbol sexpr env))
         ((not (list? sexpr))           (error "invalid sexpr type" sexpr))
         ((equal? (car sexpr) (symbol "define"))  (emit-define sexpr env))
+        ((equal? (car sexpr) (symbol "quote"))   (emit-quote (cadr sexpr) env))
         ((equal? (car sexpr) (symbol "set!"))    (emit-set sexpr env))
         ((equal? (car sexpr) (symbol "lambda"))  (emit-lambda sexpr env))
         ((equal? (car sexpr) (symbol "let"))     (emit-let sexpr env))
@@ -32,6 +34,21 @@
          (depth (car d))
          (offset (cadr d)))
     (emit-expr "call %Val @lookup(%Env %env, i64 " depth ", i64 " offset ")")))
+
+(define (emit-quote sexpr env)
+  (cond
+    ((boolean? sexpr) (emit-bool sexpr env))
+    ((number? sexpr)  (emit-number sexpr env))
+    ((string? sexpr)  (emit-string sexpr env))
+    ((symbol? sexpr)  (emit-expr "call %Val @make_sym_val(i8* " (emit-const (string sexpr)) ")"))
+    ((list? sexpr)
+     (let ((es (map (lambda (s) (emit-quote s env)) sexpr)))
+       (define args (emit-expr "call %Args @make_args(i64 " (length es) ")"))
+       (enumerate
+         (lambda (i e) (emit-line "call void @set_arg(%Args " args ", i64 " i ", %Val " e ")"))
+         es)
+       (emit-expr "tail call %Val @call_list(%Env %env, %Args " args ")")))
+    (#t (error "unknown quote type"))))
 
 (define (emit-call-func sexpr env)
   (define fexp (emit (car sexpr) env))
@@ -330,7 +347,7 @@
   (let loop ((env env)
              (depth 0))
     (if (not env)
-      (error "undefined symbol" sym)
+      (error "xc: undefined symbol" sym)
       (let* ((vals (car env))
              (def (assoc sym vals)))
         (if def

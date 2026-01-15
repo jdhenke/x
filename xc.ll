@@ -596,6 +596,12 @@ define %Val @make_str_val(i8* %s) {
   ret %Val %2
 }
 
+define %Val @make_sym_val(i8* %s) {
+  %1 = insertvalue %Val zeroinitializer, i8 5, 0
+  %2 = insertvalue %Val %1, i8* %s, 1
+  ret %Val %2
+}
+
 define %Args @make_args(i64 %n) {
   %size = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
   %m = mul i64 %size, %n
