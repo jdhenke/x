@@ -1,7 +1,6 @@
 ;;; EMIT
 
 (define (emit sexpr env)
-  (println sexpr)
   (cond ((boolean? sexpr)              (emit-bool sexpr env))
         ((number? sexpr)               (emit-number sexpr env))
         ((string? sexpr)               (emit-string sexpr env))

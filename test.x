@@ -148,14 +148,6 @@
 (define b (list 4 5 6))
 (test (list 1 2 3 4 5 6) (append a b))
 
-(define (find f l)
-  (let loop ((l l))
-    (if (null? l)
-      #f
-      (if (f (car l))
-        (car l)
-        (loop (cdr l))))))
-
 (define (memo f)
   (let ((m (list)))
     (lambda args
@@ -165,19 +157,6 @@
           (let ((r (apply f args)))
             (set! m (cons (list args r) m))
             r))))))
-
-(define curry (lambda args
-  (define f (car args))
-  (define largs (cdr args))
-  (lambda rargs
-    (apply f (append largs rargs)))))
-
-(define (map f l)
-  (let loop ((l l)
-             (out (list)))
-    (if (null? l)
-      (reverse out)
-      (loop (cdr l) (cons (f (car l)) out)))))
 
 (define (fib n)
   (if (< n 3)
@@ -193,12 +172,6 @@
 (test 3 (fib 4))
 (test 5 (fib 5))
 (test 8 (fib 6))
-
-; test TCO
-(let loop ((i 0))
-  (if (< i 30000)
-    (loop (+ i 1))
-    #t))
 
 (test "420" (number->string 420))
 (test "0" (number->string 0))

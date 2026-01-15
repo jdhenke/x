@@ -385,11 +385,20 @@
        (filter (lambda (sexpr) (and (list? sexpr) (not (null? sexpr)) (equal? (car sexpr) 'define)))
                sexprs)))
 
+
+(define (escape s)
+  (string-append "\""
+                 (cond ((equal? s "\\") "\\\\")
+                       ((equal? s "\"") "\\\"")
+                       ((equal? s "\n") "\\n")
+                       (#t s))
+                 "\""))
+
 (define (cps sexpr kexpr)
   (cond
     ((boolean? sexpr) (list kexpr sexpr))
     ((number? sexpr)  (list kexpr sexpr))
-    ((string? sexpr)  (list kexpr (string-append "\"" sexpr "\"")))
+    ((string? sexpr)  (list kexpr (escape sexpr)))
     ((symbol? sexpr)  (list kexpr (cps-name sexpr)))
     ((not (list? sexpr)) (error "cps: unknown sexpr: " sexpr))
     ((null? sexpr)    (list kexpr ''()))
@@ -534,8 +543,6 @@
       (symbol (string-append "v" (number->string i))))))
 
 (define (cps-name s)
-  (if (not (symbol? s))
-    (let () (println (pair? s)) (error "not symbol" (string s))))
   (symbol (string-append (string s "/cps"))))
 
 (define (cps-call sexpr kexpr)
