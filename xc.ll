@@ -519,7 +519,7 @@ define %Val @call_apply(%Env %env, %Args %args) {
   %lvdp = extractvalue %Val %lv, 1
   %lp = bitcast i8* %lvdp to %List*
   %fargs = call %Args @list_to_args(%List* %lp)
-  %out = tail call %Val @call_func_val(%Val %fv, %Args %fargs)
+  %out = tail call %Val @call_func_val(%Val %fv, %Args %fargs) ;; required for CPS call/cc TCO to work!
   ret %Val %out
 }
 
