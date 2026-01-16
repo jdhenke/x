@@ -20,6 +20,7 @@
         ((equal? (car sexpr) (symbol "cond"))    (eval-cond sexpr env k))
         ((equal? (car sexpr) (symbol "or"))      (eval-or sexpr env k))
         ((equal? (car sexpr) (symbol "and"))     (eval-and sexpr env k))
+        ((equal? (car sexpr) (symbol "quote"))   (eval-quote sexpr env k))
         ((equal? (car sexpr) (symbol "call/cc")) (eval-call/cc sexpr env k))
         (#t                                      (call-func sexpr env k))))
 
@@ -154,7 +155,7 @@
   (eval (car sexpr) env
         (lambda (f)
           (define args (list))
-          (let loop ((exprs (cdr sexpr) (args (list))))
+          (let loop ((exprs (cdr sexpr)) (args (list)))
             (if (null? exprs)
               (apply f (cons k (reverse args)))
               (eval (car exprs) env
@@ -165,6 +166,9 @@
   (eval (cadr sexpr) env
         (lambda (f)
           (f k (lambda (k2 val) (k val))))))
+
+(define (eval-quote sexpr env k)
+  (k (cadr sexpr)))
 
 (define (lookup env name)
   (let ((defs (car env))
@@ -215,10 +219,12 @@
           (list (symbol "length") length)
           (list (symbol "list") list)
           (list (symbol "list?") list?)
+          (list (symbol "make-random-state") make-random-state)
           (list (symbol "modulo") modulo)
           (list (symbol "null?") null?)
           (list (symbol "number?") number?)
           (list (symbol "pair?") pair?)
+          (list (symbol "random") random)
           (list (symbol "set-car!") set-car!)
           (list (symbol "set-cdr!") set-cdr!)
           (list (symbol "string") string)
