@@ -190,6 +190,9 @@
 (define (make-env runtime)
   (list
     (list
+      (list (symbol "apply")
+            (lambda (k f l)
+              (apply f (cons k l))))
       (list (symbol "runtime") runtime))
     (list
       (map
@@ -236,6 +239,7 @@
           (list (symbol "symbol?") symbol?)
           (list (symbol "sys/exit") sys/exit)
           (list (symbol "sys/read") sys/read)
+          (list (symbol "string<?") string<?)
           (list (symbol "sys/write") sys/write)
           (list (symbol "with-input-from-file")
                 (lambda (path func)
