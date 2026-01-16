@@ -188,7 +188,7 @@ next:
   %pep = extractvalue %Env %env, 1
   %pe = load %Env, %Env* %pep
   %nd = sub i64 %depth, 1
-  %rv = call %Val* @lookupp(%Env %pe, i64 %nd, i64 %offset)
+  %rv = tail call %Val* @lookupp(%Env %pe, i64 %nd, i64 %offset)
   ret %Val* %rv
 }
 
@@ -205,7 +205,7 @@ define %Val @make_func_val(%Func %f) {
 define %Val @to_func_val(%Val(%Env, %Args)* %f, %Env %env) {
   %f1 = insertvalue %Func zeroinitializer, %Val(%Env, %Args)* %f, 0
   %f2 = insertvalue %Func %f1, %Env %env, 1
-  %v = call %Val @make_func_val(%Func %f2)
+  %v = tail call %Val @make_func_val(%Func %f2)
   ret %Val %v
 }
 
@@ -234,7 +234,7 @@ l3:
   %v3i32 = call i32 @val_to_i32(%Val %v3)
   %out3 = call i32 @open(i8* %v1p, i32 %v2i32, i32 %v3i32)
   %out3i64 = sext i32 %out3 to i64
-  %outv3 = call %Val @make_int_val(i64 %out3i64)
+  %outv3 = tail call %Val @make_int_val(i64 %out3i64)
   ret %Val %outv3
 }
 
@@ -247,7 +247,7 @@ define %Val @sys_write(%Env %env, %Args %args) {
   %n = call i64 @val_to_i64(%Val %v3)
   %w = call i32 @write(i32 %fd, i8* %data, i64 %n)
   %w64 = sext i32 %w to i64
-  %out = call %Val @make_int_val(i64 %w64)
+  %out = tail call %Val @make_int_val(i64 %w64)
   ret %Val %out
 }
 
@@ -262,14 +262,14 @@ define %Val @sys_read(%Env %env, %Args %args) {
   %nr64 = sext i32 %nr to i64
   %bp = getelementptr i8, i8* %a, i64 %nr64
   store i8 0, i8* %bp
-  %out = call %Val @make_str_val(i8* %a)
+  %out = tail call %Val @make_str_val(i8* %a)
   ret %Val %out
 }
 
 define %Val @sys_fork(%Env %env, %Args %args) {
   %pid = call i32 @fork()
   %pid64 = sext i32 %pid to i64
-  %out = call %Val @make_int_val(i64 %pid64)
+  %out = tail call %Val @make_int_val(i64 %pid64)
   ret %Val %out
 }
 
@@ -277,7 +277,7 @@ define %Val @call_equal(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 0)
   %v2 = call %Val @get_arg(%Args %args, i64 1)
   %cmp = call i1 @val_equal(%Val %v1, %Val %v2)
-  %out = call %Val @make_bool_val(i1 %cmp)
+  %out = tail call %Val @make_bool_val(i1 %cmp)
   ret %Val %out
 }
 
@@ -363,7 +363,7 @@ define %Val @sys_waitpid(%Env %env, %Args %args) {
   %w = call i32 @waitpid(i32 %pid, i32* %statusp, i32 0)
   %status = load i32, i32* %statusp
   %status64 = sext i32 %status to i64
-  %out = call %Val @make_int_val(i64 %status64)
+  %out = tail call %Val @make_int_val(i64 %status64)
   ret %Val %out
 }
 
@@ -376,8 +376,7 @@ define %Val @sys_execve(%Env %env, %Args %args) {
   %enva = call i8** @to_str_array(%Val %v3)
   %ex = call i32 @execve(i8* %path, i8** %argsa, i8** %enva)
   %ex64 = sext i32 %ex to i64
-  %out = call %Val @make_int_val(i64 %ex64)
-
+  %out = tail call %Val @make_int_val(i64 %ex64)
   ret %Val %out
 }
 
@@ -430,7 +429,7 @@ define %Val @sys_close(%Env %env, %Args %args) {
   %v1i32 = call i32 @val_to_i32(%Val %v1)
   %out = call i32 @close(i32 %v1i32)
   %out64 = sext i32 %out to i64
-  %outv = call %Val @make_int_val(i64 %out64)
+  %outv = tail call %Val @make_int_val(i64 %out64)
   ret %Val %outv
 }
 
@@ -439,7 +438,7 @@ define %Val @sys_dup(%Env %env, %Args %args) {
   %v1i32 = call i32 @val_to_i32(%Val %v1)
   %out = call i32 @dup(i32 %v1i32)
   %out64 = sext i32 %out to i64
-  %outv = call %Val @make_int_val(i64 %out64)
+  %outv = tail call %Val @make_int_val(i64 %out64)
   ret %Val %outv
 }
 
@@ -450,7 +449,7 @@ define %Val @sys_dup2(%Env %env, %Args %args) {
   %v2i32 = call i32 @val_to_i32(%Val %v2)
   %out = call i32 @dup2(i32 %v1i32, i32 %v2i32)
   %out64 = sext i32 %out to i64
-  %outv = call %Val @make_int_val(i64 %out64)
+  %outv = tail call %Val @make_int_val(i64 %out64)
   ret %Val %outv
 }
 
@@ -459,7 +458,7 @@ define %Val @call_list(%Env %env, %Args %args) {
   %size = extractvalue %Args %args, 1
   %n = sub i64 %size, 1
   %l = call %List* @make_list(%Val* %vs, %List* null, i64 %n)
-  %v = call %Val @make_list_val(%List* %l)
+  %v = tail call %Val @make_list_val(%List* %l)
   ret %Val %v
 }
 
@@ -507,7 +506,7 @@ body:
   %ni = add i64 %i, 1
   br label %header
 exit:
-  %out = call %Val @make_int_val(i64 %sum)
+  %out = tail call %Val @make_int_val(i64 %sum)
   ret %Val %out
 }
 
@@ -520,7 +519,7 @@ define %Val @call_apply(%Env %env, %Args %args) {
   %lvdp = extractvalue %Val %lv, 1
   %lp = bitcast i8* %lvdp to %List*
   %fargs = call %Args @list_to_args(%List* %lp)
-  %out = call %Val @call_func_val(%Val %fv, %Args %fargs)
+  %out = tail call %Val @call_func_val(%Val %fv, %Args %fargs)
   ret %Val %out
 }
 
@@ -730,7 +729,7 @@ copy_body:
   br label %copy_header
 
 done:
-  %out = call %Val @make_str_val(i8* %outp)
+  %out = tail call %Val @make_str_val(i8* %outp)
   ret %Val %out
 }
 
@@ -749,7 +748,7 @@ define %Val @call_cdr(%Env %env, %Args %args) {
   %l = bitcast i8* %lp to %List*
   %lv = load %List, %List* %l
   %cdr = extractvalue %List %lv, 1
-  %out = call %Val @make_list_val(%List* %cdr)
+  %out = tail call %Val @make_list_val(%List* %cdr)
   ret %Val %out
 }
 
@@ -759,7 +758,7 @@ define %Val @call_cons(%Env %env, %Args %args) {
   %l1p = extractvalue %Val %v1, 1
   %l1 = bitcast i8* %l1p to %List*
   %h = call %List* @cons(%Val %v0, %List* %l1)
-  %out = call %Val @make_list_val(%List* %h)
+  %out = tail call %Val @make_list_val(%List* %h)
   ret %Val %out
 }
 
@@ -767,7 +766,7 @@ define %Val @call_nullq(%Env %env, %Args %args) {
   %v0 = call %Val @get_arg(%Args %args, i64 0)
   %d = extractvalue %Val %v0, 1
   %cmp = icmp eq i8* %d, null
-  %out = call %Val @make_bool_val(i1 %cmp)
+  %out = tail call %Val @make_bool_val(i1 %cmp)
   ret %Val %out
 }
 
@@ -777,7 +776,7 @@ define %Val @call_slt(%Env %env, %Args %args) {
   %i0 = call i64 @val_to_i64(%Val %v0)
   %i1 = call i64 @val_to_i64(%Val %v1)
   %cmp = icmp slt i64 %i0, %i1
-  %out = call %Val @make_bool_val(i1 %cmp)
+  %out = tail call %Val @make_bool_val(i1 %cmp)
   ret %Val %out
 }
 
@@ -787,7 +786,7 @@ define %Val @call_sub(%Env %env, %Args %args) {
   %i0 = call i64 @val_to_i64(%Val %v0)
   %i1 = call i64 @val_to_i64(%Val %v1)
   %diff = sub i64 %i0, %i1
-  %out = call %Val @make_int_val(i64 %diff)
+  %out = tail call %Val @make_int_val(i64 %diff)
   ret %Val %out
 }
 
@@ -805,27 +804,27 @@ define %Val @is_boolean(%Env %env, %Args %args) {
 }
 
 define %Val @is_integer(%Env %env, %Args %args) {
-  %out = call %Val @is_type(%Args %args, i8 2)
+  %out = tail call %Val @is_type(%Args %args, i8 2)
   ret %Val %out
 }
 
 define %Val @is_string(%Env %env, %Args %args) {
-  %out = call %Val @is_type(%Args %args, i8 3)
+  %out = tail call %Val @is_type(%Args %args, i8 3)
   ret %Val %out
 }
 
 define %Val @is_list(%Env %env, %Args %args) {
-  %out = call %Val @is_type(%Args %args, i8 4)
+  %out = tail call %Val @is_type(%Args %args, i8 4)
   ret %Val %out
 }
 
 define %Val @is_symbol(%Env %env, %Args %args) {
-  %out = call %Val @is_type(%Args %args, i8 5)
+  %out = tail call %Val @is_type(%Args %args, i8 5)
   ret %Val %out
 }
 
 define %Val @is_function(%Env %env, %Args %args) {
-  %out = call %Val @is_type(%Args %args, i8 6)
+  %out = tail call %Val @is_type(%Args %args, i8 6)
   ret %Val %out
 }
 
@@ -833,7 +832,7 @@ define %Val @is_type(%Args %args, i8 %type) {
   %v0 = call %Val @get_arg(%Args %args, i64 0)
   %vt = extractvalue %Val %v0, 0
   %cmp = icmp eq i8 %type, %vt
-  %out = call %Val @make_bool_val(i1 %cmp)
+  %out = tail call %Val @make_bool_val(i1 %cmp)
   ret %Val %out
 }
 
@@ -843,7 +842,7 @@ define %Val @call_random(%Env %env, %Args %args) {
   %n = call i64 @val_to_i64(%Val %v0)
   %r64 = sext i32 %r to i64
   %rem = urem i64 %r64, %n
-  %out = call %Val @make_int_val(i64 %rem)
+  %out = tail call %Val @make_int_val(i64 %rem)
   ret %Val %out
 }
 
@@ -852,7 +851,7 @@ define %Val @call_list_length(%Env %env, %Args %args) {
   %d = extractvalue %Val %v0, 1
   %l = bitcast i8* %d to %List*
   %n = call i64 @list_length(%List* %l)
-  %out = call %Val @make_int_val(i64 %n)
+  %out = tail call %Val @make_int_val(i64 %n)
   ret %Val %out
 }
 
@@ -860,7 +859,7 @@ define %Val @call_string_length(%Env %env, %Args %args) {
   %v0 = call %Val @get_arg(%Args %args, i64 0)
   %d = extractvalue %Val %v0, 1
   %n = call i64 @strlen(i8* %d)
-  %out = call %Val @make_int_val(i64 %n)
+  %out = tail call %Val @make_int_val(i64 %n)
   ret %Val %out
 }
 
@@ -871,7 +870,7 @@ define %Val @call_string_lt(%Env %env, %Args %args) {
   %s2 = extractvalue %Val %v2, 1
   %result = call i32 @strcmp(i8* %s1, i8* %s2)
   %is_less = icmp slt i32 %result, 0
-  %out = call %Val @make_bool_val(i1 %is_less)
+  %out = tail call %Val @make_bool_val(i1 %is_less)
   ret %Val %out
 }
 
@@ -879,7 +878,7 @@ define %Val @call_string_list(%Env %env, %Args %args) {
   %v0 = call %Val @get_arg(%Args %args, i64 0)
   %s = extractvalue %Val %v0, 1
   %l = call %List* @append_string_list(i8* %s)
-  %out = call %Val @make_list_val(%List* %l)
+  %out = tail call %Val @make_list_val(%List* %l)
   ret %Val %out
 }
 
@@ -938,7 +937,7 @@ define %Val @call_modulo(%Env %env, %Args %args) {
   %i0 = call i64 @val_to_i64(%Val %v0)
   %i1 = call i64 @val_to_i64(%Val %v1)
   %r = srem i64 %i0, %i1
-  %out = call %Val @make_int_val(i64 %r)
+  %out = tail call %Val @make_int_val(i64 %r)
   ret %Val %out
 }
 
@@ -948,7 +947,7 @@ define %Val @call_mul(%Env %env, %Args %args) {
   %i0 = call i64 @val_to_i64(%Val %v0)
   %i1 = call i64 @val_to_i64(%Val %v1)
   %r = mul i64 %i0, %i1
-  %out = call %Val @make_int_val(i64 %r)
+  %out = tail call %Val @make_int_val(i64 %r)
   ret %Val %out
 }
 
@@ -958,7 +957,7 @@ define %Val @call_div(%Env %env, %Args %args) {
   %i0 = call i64 @val_to_i64(%Val %v0)
   %i1 = call i64 @val_to_i64(%Val %v1)
   %r = sdiv i64 %i0, %i1
-  %out = call %Val @make_int_val(i64 %r)
+  %out = tail call %Val @make_int_val(i64 %r)
   ret %Val %out
 }
 
@@ -973,9 +972,9 @@ check_cdr:
   %vcmp = icmp eq %List* %l, null
   br i1 %vcmp, label %no, label %yes
 yes:
-  %yesv = call %Val @make_bool_val(i1 1)
+  %yesv = tail call %Val @make_bool_val(i1 1)
   ret %Val %yesv
 no:
-  %nov = call %Val @make_bool_val(i1 0)
+  %nov = tail call %Val @make_bool_val(i1 0)
   ret %Val %nov
 }
