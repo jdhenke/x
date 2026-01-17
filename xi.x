@@ -347,7 +347,7 @@
         (loop (+ depth 1) 0 (cadr env))
         (if (equal? (caar env) v)
           (list '_ll depth offset v)
-          (loop depth (+ offset 1) (list (cdar env) (cadr env))))))))
+          (loop depth (+ offset 1) (list (cdr (car env)) (cadr env))))))))
 
 (define (bind-body env self named rest body)
   (let* ((senv (list (if self (list self) (list)) env))
