@@ -13,10 +13,10 @@ syntax and has its own minimal standard library.
 
 Further, x itself is sufficient to:
 
-- write its own interpreter (`xi.x`)
-- write its own compiler (`xc.x`)
-- pass unit tests for each language feature (`test.x`)
-- solve Advent of Code puzzles (`aoc/`)
+- write its own interpreter ([`xi.x`](./xi.x))
+- write its own compiler ([`xc.x`](./xc.x))
+- pass unit tests for each language feature ([`test.x`](./test.x))
+- solve Advent of Code puzzles ([`aoc/`](./aoc))
 
 ## Setup
 
@@ -46,7 +46,7 @@ You should now have three x runtimes:
 - `./xi` a native x interpreter
 - `./xc` a native x compiler
 
-All accept x source from stdin and run it.
+All accept x code from stdin and run it.
 
 ```bash
 for x in ./xs ./xi ./xc; do
@@ -57,16 +57,21 @@ done
 To have `xc` only compile and not run, use `-o <path>` e.g.
 
 ```bash
-./xc -o output.bin < code.x
+./xc -o /tmp/output.bin < code.x
 ```
+
+Note: all three runtimes support [tail
+recursion](https://en.wikipedia.org/wiki/Tail_call). See
+[below](#verify-callcc) for details on `call/cc` support.
 
 ### Verify
 
 Because the x interpreter and compiler are written themselves in x, one can
 chain them together after bootstrapping with the scheme runtime.
 
-To verify that chaining the runtimes together in different orders produces the
-same exact results, run:
+To verify that chaining the runtimes together in different orders reproduces
+the same results, including the "fixed point" that the compiler can reproduce
+itself byte-for-byte, run:
 
 ```bash
 ./verify
@@ -75,9 +80,32 @@ same exact results, run:
 Note: for performance reasons, this limits to chains that do not run nested
 interpeters.
 
+### Verify `call/cc`
+
+Support for
+[continuations](https://en.wikipedia.org/wiki/Call-with-current-continuation)
+varies by runtime:
+
+- `./xs` inherits support from MIT scheme
+- `./xi` supports by internally representing computations in [Continuation-Passing
+  Style](https://en.wikipedia.org/wiki/Continuation-passing_style) (CPS)
+- `./xc` does not support itself, but accepts externally CPS-converted code using `./cps`
+
+These can each be tested with:
+
+```bash
+cat test-k.x | ./xs
+cat test-k.x | ./xi
+cat test-k.x | ./cps | ./xc
+```
+
+Or by running: [`./verify-k`](./verify-k)
+
+Note: this purposefully produces random pairings every time.
+
 ## Examples: Advent of Code
 
-See `./aoc` for solutions to Advent of Code puzzles written in x.
+See [`./aoc`](./aoc) for solutions to Advent of Code puzzles written in x.
 
 You can run with any runtime e.g.:
 
