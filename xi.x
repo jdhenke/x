@@ -59,7 +59,11 @@
   (let ((c (cadr sexpr)))
     (eval (caddr sexpr) env
           (lambda (val)
+            (if (equal? (first c) '_lg)
+              (set! c (bind-get-coords (second c) (lex-env env))))
             (let loop ((env env) (depth 0))
+              (if (not env)
+                (error "xi: not present" c sexpr))
               (if (= depth (cadr c))
                 (let ((p (list-ref (car env) (caddr c))))
                   (set-cdr! p (list val))
@@ -333,7 +337,7 @@
        (append (list (first sexpr))
                (if self (list self) (list))
                (list argbs)
-               (bind-body env self named '() body))))
+               (bind-body env self named #f body))))
     (#t (map (curryr bind env) sexpr))))
 
 (define (bind-pass sexpr env)
@@ -352,13 +356,20 @@
 (define (bind-body env self named rest body)
   (let* ((senv (list (if self (list self) (list)) env))
          (benv (list (append named (if rest (list rest) (list))) senv)))
+    (if (list? rest)
+      (error "list rest" body))
+    (if (find null? (car benv))
+      (error "empty list in benv" senv benv self named rest))
     (map (curryr bind benv) body)))
 
-;;; FIXME: more efficient
-(define (lglobal) (let loop ((e global))
-                      (if (not e)
-                        e
-                        (list (map car (car e)) (loop (cadr e))))))
+(define (lglobal) (lex-env global))
+
+(define (lex-env env)
+  (let loop ((e env))
+    (if (not e)
+      e
+      (list (map car (car e)) (loop (cadr e))))))
+
 (define (repl)
   (let loop ()
     (let ((sexpr (read)))

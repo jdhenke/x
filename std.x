@@ -409,7 +409,7 @@
                sexprs)))
 
 
-(define (escape sexpr)
+(define (cps-escape sexpr)
   (cond
     ((string? sexpr)
      (string-append "\""
@@ -418,19 +418,19 @@
                           ((equal? sexpr "\n") "\\n")
                           (#t sexpr))
                     "\""))
-    ((list? sexpr) (map escape sexpr))
+    ((list? sexpr) (map cps-escape sexpr))
     (#t sexpr)))
 
 (define (cps sexpr kexpr)
   (cond
     ((boolean? sexpr) (list kexpr sexpr))
     ((number? sexpr)  (list kexpr sexpr))
-    ((string? sexpr)  (list kexpr (escape sexpr)))
+    ((string? sexpr)  (list kexpr (cps-escape sexpr)))
     ((symbol? sexpr)  (list kexpr (cps-name sexpr)))
     ((not (list? sexpr)) (error "cps: unknown sexpr: " sexpr))
     ((null? sexpr)    (list kexpr ''()))
     ((equal? (car sexpr) (symbol "define"))  (cps-define sexpr kexpr))
-    ((equal? (car sexpr) (symbol "quote"))   (list kexpr (escape sexpr)))
+    ((equal? (car sexpr) (symbol "quote"))   (list kexpr (cps-escape sexpr)))
     ((equal? (car sexpr) (symbol "set!"))    (cps-set! sexpr kexpr))
     ((equal? (car sexpr) (symbol "lambda"))  (cps-lambda sexpr kexpr))
     ((equal? (car sexpr) (symbol "let"))     (cps-let sexpr kexpr))
