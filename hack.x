@@ -1,2 +1,3 @@
-(define a 41)
-(+ a 1)
+(define (to-cps f) (lambda args ((car args) (apply f (cdr args)))))
+(define sys/close/cps (to-cps sys/close))
+

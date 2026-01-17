@@ -1,5 +1,0 @@
-(define (f a) a)
-(define (g . args) args)
-(define b (list 1 (list 2 3)))
-(f b)
-(apply g b)
