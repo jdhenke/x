@@ -508,7 +508,7 @@
           (lambda ()
             (print-file)))
         (run "/bin/sh" "-c" (string-append "cat xc.ll " ll " > /tmp/both.ll"))
-        (run "/usr/bin/arch" "-arm64" "clang" "-Wno-override-module" "-lgc" "/tmp/both.ll" "-o" out)
+        (run "/usr/bin/arch" "-arm64" "clang" "-O1" "-Wno-override-module" "-lgc" "/tmp/both.ll" "-o" out)
         (if (equal? out "/tmp/exe")
           (run out)
           (sys/exit 0))))))
