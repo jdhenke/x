@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -e -o pipefail
+
+echo "S(k)"
+cat test-k.x | /usr/bin/time ./xs
+
+echo "I(k)"
+cat test-k.x | /usr/bin/time ./xi
+
+echo "C(cps(k))"
+cat test-k.x | ./cps | /usr/bin/time ./xc
+
