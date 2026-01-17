@@ -1,1 +1,3 @@
-(for-each (lambda (l) (println l)) (cps-transform (append (read-file "std.x") (read-file "/tmp/elf.scm"))))
+(for-each
+  println
+  (cps-transform (append (read-file "std.x") (read-file (last (command-line))))))
