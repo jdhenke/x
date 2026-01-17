@@ -148,6 +148,13 @@
 (define b (list 4 5 6))
 (test (list 1 2 3 4 5 6) (append a b))
 
+(test
+  30000
+  (let loop ((i 0) (c 0))
+    (if (< i 30000)
+      (loop (+ i 1) (+ c 1))
+      c)))
+
 (define (memo f)
   (let ((m (list)))
     (lambda args
