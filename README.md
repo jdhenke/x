@@ -66,7 +66,7 @@ recursion](https://en.wikipedia.org/wiki/Tail_call). See
 
 ### Verify
 
-Because the x interpreter and compiler are written themselves in x, one can
+Because the x interpreter and compiler are written in x themselves, one can
 chain them together after bootstrapping with the scheme runtime.
 
 To verify that chaining the runtimes together in different orders reproduces
@@ -101,7 +101,8 @@ cat test-k.x | ./cps | ./xc
 
 Or by running: [`./verify-k`](./verify-k)
 
-Note: this purposefully produces random pairings every time.
+Note: [`test-k.x`](./test-k.x) purposefully produces random pairings (that
+still satisfy constraints!) each time.
 
 ## Examples: Advent of Code
 
