@@ -197,7 +197,7 @@
 (test #t (string-number? "0"))
 
 (if pass
-  (println "PASS")
+  #t
   (let ()
     (println "FAIL")
     (sys/exit 1)))

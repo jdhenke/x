@@ -8,65 +8,60 @@
 ## Check output equality (glass box)
 # St = It = Ct
 
-set -e -o pipefail
+set -eE -o pipefail
 
-c() {
-  comp=$1
-  base=$(basename $2 .x)
-  cat xc.ll > /tmp/$base.ll && cat std.x $2 | $comp >> /tmp/$base.ll
-  clang -Wno-override-module -lgc /tmp/$base.ll -o /tmp/$base
-}
+trap 'echo FAIL' ERR
 
 eq() {
   [ "$(md5 -q $1)" = "$(md5 -q $2)" ]
 }
 
+build() {
+  /usr/bin/time $2 < <(cat $3 $4) > $1
+  chmod +x $1
+}
+
 # Bootstrap C
 echo "C := Scc"
-/usr/bin/time ./xs -o /tmp/xc < <(cat xc.x xc.x)
-mv /tmp/xc /tmp/xc1
+build /tmp/xc1 ./xs xc.x xc.x
 
 # Bootstrap I
 echo "I := Sci"
-/usr/bin/time ./xs -o /tmp/xi < <(cat xc.x xi.x)
-mv /tmp/xi /tmp/xi1
+build /tmp/xi1 ./xs xc.x xi.x
 
 # C = Cc
 echo "C == Cc"
-/usr/bin/time /tmp/xc1 -o /tmp/xc < xc.x
-mv /tmp/xc /tmp/xc2
+build /tmp/xc2 /tmp/xc1 xc.x
 eq /tmp/xc1 /tmp/xc2
 
 # C = Icc
 echo "C == Icc"
-/usr/bin/time /tmp/xi1 -o /tmp/xc < <(cat xc.x xc.x)
-mv /tmp/xc /tmp/xc3
+build /tmp/xc3 /tmp/xi1 xc.x xc.x
 eq /tmp/xc1 /tmp/xc3
 
 # I = Ci
 echo "I == Ci"
-/usr/bin/time /tmp/xc1 -o /tmp/xi < xi.x
-mv /tmp/xi /tmp/xi2
+build /tmp/xi2 /tmp/xc1 xi.x
 eq /tmp/xi1 /tmp/xi2
 
 # I = Ici
 echo "I == Ici"
-/usr/bin/time /tmp/xi1 -o /tmp/xi < <(cat xc.x xi.x)
-mv /tmp/xi /tmp/xi3
+build /tmp/xi3 /tmp/xi1 xc.x xi.x
 eq /tmp/xi1 /tmp/xi3
 
 # T = St
 echo "T := St"
-/usr/bin/time ./xs < test.x | tee /tmp/t1
+build /tmp/t1 ./xs test.x
 
 # T = It
 echo "T == It"
-/usr/bin/time /tmp/xi1 < test.x | tee /tmp/t2
+build /tmp/t2 /tmp/xi1 test.x
 eq /tmp/t1 /tmp/t2
 
 # T = Ct
 echo "T == Ct"
-/usr/bin/time /tmp/xc1 < test.x | tee /tmp/t3
+build /tmp/t3 /tmp/xc1 test.x
 eq /tmp/t1 /tmp/t3
 
 echo PASS
+

@@ -80,6 +80,27 @@ itself byte-for-byte, run:
 Note: for performance reasons, this limits to chains that do not run nested
 interpeters.
 
+### Verify `null`
+
+Although the above verification is quite rigorous in the sense that it verifies
+the internal consistency of the different runtimes as black boxes from all
+feasible angles, it should be noted that this style of verification fails to
+ensure such outputs are sensible in an externally verifiable way.
+
+For proof, see that a `null` interpreter and compiler pass verification:
+
+```bash
+truncate -s 0 xi.x
+truncate -s 0 xc.x
+
+./verify
+
+git checkout HEAD -- xi.x xc.x
+```
+
+Deciding whether this is a feature or a bug of `./verify` is an exercise left
+to the reader.
+
 ### Verify `call/cc`
 
 Support for
