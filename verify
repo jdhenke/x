@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-## Check binary equality (black box)
+## Check binary equality
 # C = Scc = Icc = Cc
 # I = Sci = Ici = Ci
 # T = Sct = Ict = Ct
 
-## Check output equality (glass box)
+## Check output equality
 # St = It = Ct
 
 set -eE -o pipefail
@@ -17,8 +17,14 @@ eq() {
 }
 
 build() {
-  /usr/bin/time $2 < <(cat $3 $4) > $1
+  touch /tmp/o
+  /usr/bin/time $2 -o /tmp/o < <(cat $3 $4)
+  mv /tmp/o $1
   chmod +x $1
+}
+
+run() {
+  /usr/bin/time $2 < <(cat $3) > $1
 }
 
 # Bootstrap C
@@ -51,16 +57,16 @@ eq /tmp/xi1 /tmp/xi3
 
 # T = St
 echo "T := St"
-build /tmp/t1 ./xs test.x
+run /tmp/t1 ./xs test.x
 
 # T = It
 echo "T == It"
-build /tmp/t2 /tmp/xi1 test.x
+run /tmp/t2 /tmp/xi1 test.x
 eq /tmp/t1 /tmp/t2
 
 # T = Ct
 echo "T == Ct"
-build /tmp/t3 /tmp/xc1 test.x
+run /tmp/t3 /tmp/xc1 test.x
 eq /tmp/t1 /tmp/t3
 
 echo PASS
