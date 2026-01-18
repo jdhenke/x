@@ -82,10 +82,10 @@ interpeters.
 
 ### Verify `null`
 
-Although the above verification is quite rigorous in the sense that it verifies
-the internal consistency of the different runtimes as black boxes from all
-feasible angles, it should be noted that this style of verification fails to
-ensure such outputs are sensible in an externally verifiable way.
+Although the above verification is quite rigorous in the sense that it ensures
+the different runtimes can reproduce and behave consistently relative to each
+other, it should be noted that this style of verification does not necessarily
+ensure anything specific to the x language in particular.
 
 For proof, see that a `null` interpreter and compiler pass verification:
 
