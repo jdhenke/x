@@ -379,6 +379,7 @@
     (if (null? std)
       #f
       (let ()
+        (println (car std))
         (eval (car std) global (lambda (v) v))
         (loop (cdr std)))))
   (repl))

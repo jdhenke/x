@@ -395,68 +395,7 @@
       ((equal? c "'")     (read-quote))
       (#t                 (read-symbol)))))
 
-;;; CPS
-
-(define (cps-transform sexprs)
-  (let loop ((sexprs sexprs) (out (reverse (defs sexprs))))
-    (if (null? sexprs)
-      (reverse out)
-      (loop (cdr sexprs) (cons (list (list 'lambda '(_k) (cps (car sexprs) '_k)) '(lambda (v) #f)) out)))))
-
-(define (defs sexprs)
-  (map (lambda (sexpr) (list 'define (cps-name (if (list? (second sexpr)) (caadr sexpr) (cadr sexpr))) #f))
-       (filter (lambda (sexpr) (and (list? sexpr) (not (null? sexpr)) (equal? (car sexpr) 'define)))
-               sexprs)))
-
-
-(define (cps-escape sexpr)
-  (cond
-    ((string? sexpr)
-     (string-append "\""
-                    (cond ((equal? sexpr "\\") "\\\\")
-                          ((equal? sexpr "\"") "\\\"")
-                          ((equal? sexpr "\n") "\\n")
-                          (#t sexpr))
-                    "\""))
-    ((list? sexpr) (map cps-escape sexpr))
-    (#t sexpr)))
-
-(define (cps sexpr kexpr)
-  (cond
-    ((boolean? sexpr) (list kexpr sexpr))
-    ((number? sexpr)  (list kexpr sexpr))
-    ((string? sexpr)  (list kexpr (cps-escape sexpr)))
-    ((symbol? sexpr)  (list kexpr (cps-name sexpr)))
-    ((not (list? sexpr)) (error "cps: unknown sexpr: " sexpr))
-    ((null? sexpr)    (list kexpr ''()))
-    ((equal? (car sexpr) (symbol "define"))  (cps-define sexpr kexpr))
-    ((equal? (car sexpr) (symbol "quote"))   (list kexpr (cps-escape sexpr)))
-    ((equal? (car sexpr) (symbol "set!"))    (cps-set! sexpr kexpr))
-    ((equal? (car sexpr) (symbol "lambda"))  (cps-lambda sexpr kexpr))
-    ((equal? (car sexpr) (symbol "let"))     (cps-let sexpr kexpr))
-    ((equal? (car sexpr) (symbol "let*"))    (cps-let sexpr kexpr))
-    ((equal? (car sexpr) (symbol "if"))      (cps-if sexpr kexpr))
-    ((equal? (car sexpr) (symbol "cond"))    (cps-cond sexpr kexpr))
-    ((equal? (car sexpr) (symbol "or"))      (cps-or sexpr kexpr))
-    ((equal? (car sexpr) (symbol "and"))     (cps-and sexpr kexpr))
-    ((equal? (car sexpr) (symbol "call/cc")) (cps-call/cc sexpr kexpr))
-    ((equal? (car sexpr) (symbol "apply"))   (cps-apply sexpr kexpr))
-    (#t                                      (cps-call sexpr kexpr))))
-
-(define (cps-define sexpr kexpr)
-  (if (list? (second sexpr))
-    (cps-define-func sexpr kexpr)
-    (cps-set! sexpr kexpr)))
-
-(define (cps-set! sexpr kexpr)
-  (define rv (gp))
-  (define kv (gp))
-  (list (list 'lambda (list kv) (cps (third sexpr) kv)) (list 'lambda (list rv) (list 'set! (cps-name (second sexpr)) rv) (list kexpr rv))))
-
-(define (cps-define-func sexpr kexpr)
-  (list 'let '()
-    (list 'set! (cps-name (caadr sexpr)) (cps-func (func-named sexpr) (func-rest sexpr) (func-body sexpr)))
-    (list kexpr (cps-name (caadr sexpr)))))
+;;; PARSE
 
 (define (split-args args)
   (let loop ((args args)
@@ -475,9 +414,6 @@
 
 (define (func-body sexpr) (cddr sexpr))
 
-(define (cps-lambda sexpr kexpr)
-  (list kexpr (cps-func (lambda-named sexpr) (lambda-rest sexpr) (lambda-body sexpr))))
-
 (define (lambda-named sexpr)
   (if (list? (second sexpr))
     (car (split-args (second sexpr)))
@@ -489,108 +425,3 @@
     (second sexpr)))
 
 (define (lambda-body sexpr) (cddr sexpr))
-
-(define (cps-func named rest body)
-  (define kv (gp))
-  (append
-    (list 'lambda
-        (append
-          (cons kv (map cps-name named))
-          (if rest (list "." (cps-name rest)) (list))))
-    (cps-body body kv)))
-
-(define (cps-body sexprs kexpr)
-  (if (null? sexprs)
-    (error "empty body"))
-  (define predefs (defs sexprs))
-  (let loop ((sexprs (reverse sexprs))
-             (next kexpr))
-    (if (null? sexprs)
-      (append predefs (list (list next #f)))
-      (let ((rv (gp)))
-        (loop (cdr sexprs)
-            (list 'lambda '(_) 
-              (cps (car sexprs) (list 'lambda (list rv) (list next rv)))))))))
-
-(define (cps-let sexpr kexpr)
-  (let* ((self (if (list? (second sexpr)) #f (cps-name (second sexpr))))
-         (argps (map (lambda (p) (list (cps-name (car p)) (cadr p))) (if self (third sexpr) (second sexpr))))
-         (kv (gp))
-         (out (append
-                (list (car sexpr))
-                (if self (list self) '())
-                (list (cons (list kv kexpr) (map (lambda (p) (list (car p) (car p))) argps)))
-                (cps-body (if self (cdddr sexpr) (cddr sexpr)) kv))))
-    (let loop ((argps (reverse argps)) (out out))
-      (if (null? argps)
-        out
-        (loop (cdr argps)
-              (cps (cadar argps) (list 'lambda (list (caar argps)) out)))))))
-
-(define (cps-if sexpr kexpr)
-  (define rv (gp))
-  (cps (second sexpr) (list 'lambda (list rv) (list 'if rv (cps (third sexpr) kexpr) (if (> (length sexpr) 3) (cps (fourth sexpr) kexpr) #f)))))
-
-(define (cps-cond sexpr kexpr)
-  (let loop ((conds (reverse (cdr sexpr))) (out (list kexpr #f)))
-    (define rv (gp))
-    (if (null? conds)
-      out
-      (loop (cdr conds) (cps (caar conds) (list 'lambda (list rv) (list 'if rv (cps (cadar conds) kexpr) out)))))))
-
-(define (cps-and sexpr kexpr)
-  (let loop ((clauses (reverse (cdr sexpr)))
-             (out (list kexpr #t)))
-    (define rv (gp))
-    (if (null? clauses)
-      out
-      (loop (cdr clauses) (cps (car clauses) (list 'lambda (list rv) (list 'if rv out (list kexpr #f))))))))
-
-(define (cps-or sexpr kexpr)
-  (let loop ((clauses (reverse (cdr sexpr)))
-             (out (list kexpr #f)))
-    (define rv (gp))
-    (if (null? clauses)
-      out
-      (loop (cdr clauses) (cps (car clauses) (list 'lambda (list rv) (list 'if rv (list kexpr #t) out)))))))
-
-(define (cps-apply sexpr kexpr)
-  (define fv (gp))
-  (define lv (gp))
-  (cps (second sexpr)
-       (list 'lambda (list fv)
-             (cps (third sexpr)
-                  (list 'lambda (list lv)
-                        (list 'apply fv (list 'cons kexpr lv)))))))
-
-(define gp
-  (let ((i 0))
-    (lambda ()
-      (set! i (+ i 1))
-      (symbol (string-append "v" (number->string i))))))
-
-(define (cps-name s)
-  (symbol (string-append (string s "/cps"))))
-
-(define (cps-call sexpr kexpr)
-  (define fs (cps-name (first sexpr)))
-  (define pv (gp))
-  (let loop ((args (reverse (cdr sexpr)))
-             (out (list 'lambda (list pv) (list 'apply fs (list 'cons kexpr (list 'reverse pv))))))
-    (if (null? args)
-      (list out ''())
-      (let ((inner-pv (gp))
-            (rv (gp)))
-        (loop (cdr args)
-              (list 'lambda (list inner-pv) (cps (car args) (list 'lambda (list rv) (list out (list 'cons rv inner-pv))))))))))
-
-(define (cps-call/cc sexpr kexpr)
-  (define fv (gp))
-  (define rv (gp))
-  (define kv (gp))
-  (list
-    (list 'lambda (list kv)
-          (cps (second sexpr)
-               (list 'lambda (list fv)
-                     (list fv kv (list 'lambda (list '_ rv) (list kv rv))))))
-    kexpr))
