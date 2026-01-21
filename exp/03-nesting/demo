@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+set -e -o pipefail
+
+cd ../..
+
+s='(println (string-append "Hello from: " runtime))'
+
+echo "Running: S ..."
+./xs < <(echo $s)
+
+echo -e "\nRunning: S | i ..."
+./xs < <(cat xi.x; echo $s)
+
+echo -e "\nRunning: S | i | i ..."
+./xs < <(cat xi.x xi.x; echo $s) # slow
+
+echo -e "\nRunning: C ..."
+./xc < <(echo $s)
+
+echo -e "\nRunning: I ..."
+./xi < <(echo $s)
+
+echo -e "\nRunning: I | i"
+./xi < <(cat xi.x; echo $s) # slow
+
