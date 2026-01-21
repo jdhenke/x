@@ -80,27 +80,6 @@ itself byte-for-byte, run:
 Note: for performance reasons, this limits to chains that do not run nested
 interpeters.
 
-### Verify `null`
-
-Although the above verification is quite rigorous in the sense that it ensures
-the different runtimes can reproduce and behave consistently relative to each
-other, it should be noted that this style of verification does not necessarily
-ensure anything specific to the x language in particular.
-
-For proof, see that a `null` interpreter and compiler pass verification:
-
-```bash
-truncate -s 0 xi.x
-truncate -s 0 xc.x
-
-./verify
-
-git checkout HEAD -- xi.x xc.x
-```
-
-Deciding whether this is a feature or a bug of `./verify` is an exercise left
-to the reader.
-
 ### Verify `call/cc`
 
 Support for
@@ -136,4 +115,11 @@ You can run with any runtime e.g.:
 ./xi < ./aoc/2025/day1.x
 ./xc < ./aoc/2025/day1.x
 ```
+
+## Experiments
+
+See [`./exp/`](./exp/) for some motivating or follow-on experiments to x.
+
+1. See how the [`null`](./exp/01-null/) solution actually passes verification.
+2. See a [minimal `eval`](./exp/02-min-eval/) that can evaluate itself.
 
