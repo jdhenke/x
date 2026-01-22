@@ -21,17 +21,18 @@
                 (loop (cons c out)))))))
       ",")))
 
+(define (substring s i j)
+  (apply string-append (sublist (string-list s) i j)))
+
 (define (p1 n)
   (let* ((s (number->string n))
-         (sl (string-list s))
-         (n (length sl))
+         (n (string-length s))
          (m (/ n 2)))
-    (equal? (sublist sl 0 m) (sublist sl m n))))
+    (equal? (substring s 0 m) (substring s m n))))
 
 (define (p2 n) #f)
 
 (let ((rs (get-ranges)))
-  (println rs)
   (let outer ((rs rs) (part1 0) (part2 0))
     (if (null? rs)
       (let ()
