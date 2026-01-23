@@ -255,6 +255,7 @@
           (list (symbol "string-list") string-list)
           (list (symbol "string<?") string<?)
           (list (symbol "string?") string?)
+          (list (symbol "substring") substring)
           (list (symbol "symbol") symbol)
           (list (symbol "symbol?") symbol?)
           (list (symbol "sys/close") sys/close)

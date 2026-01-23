@@ -474,6 +474,7 @@
                    (list (symbol "runtime") 40)
                    (list (symbol "random") 41)
                    (list (symbol "string<?") 42)
+                   (list (symbol "substring") 43)
                    )
                   #f))
 

@@ -28,7 +28,7 @@ declare i32 @waitpid(i32, i32*, i32)
 define %Env @make_global_env(i32 %argc, i8** %argv) {
   ; create env with val in it
   %fsize = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
-  %size = mul i64 %fsize, 43
+  %size = mul i64 %fsize, 44
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
@@ -45,6 +45,7 @@ define %Env @make_global_env(i32 %argc, i8** %argv) {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_list, i64 29)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_length, i64 28)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_string_lt, i64 42)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_substring, i64 43)
   ; list
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_list, i64 24)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list, i64 1)
@@ -1023,4 +1024,17 @@ yes:
 no:
   %nov = tail call %Val @make_bool_val(i1 0)
   ret %Val %nov
+}
+
+define %Val @call_substring(%Env %env, %Args %args) {
+  %vs = call %Val @get_arg(%Args %args, i64 0)
+  %vi = call %Val @get_arg(%Args %args, i64 1)
+  %vj = call %Val @get_arg(%Args %args, i64 2)
+  %sd = call i8* @val_to_str_d(%Val %vs)
+  %i = call i64 @val_to_i64(%Val %vi)
+  %j = call i64 @val_to_i64(%Val %vj)
+  %n = sub i64 %j, %i
+  %nsd = getelementptr i8, i8* %sd, i64 %i
+  %out = tail call %Val @make_str_val(i64 %n, i8* %nsd)
+  ret %Val %out
 }

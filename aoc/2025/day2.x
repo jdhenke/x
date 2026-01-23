@@ -21,9 +21,6 @@
                 (loop (cons c out)))))))
       ",")))
 
-(define (substring s i j)
-  (apply string-append (sublist (string-list s) i j)))
-
 (define (p1 n)
   (let* ((s (number->string n))
          (n (string-length s))
