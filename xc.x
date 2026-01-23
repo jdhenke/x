@@ -26,7 +26,7 @@
 
 (define (emit-string sexpr env)
   (define s (emit-const sexpr))
-  (emit-expr "call %Val @make_str_val(i8* " s ")"))
+  (emit-expr "call %Val @make_str_val(i64 " (string-length sexpr) ", i8* " s ")"))
 
 (define (emit-lookup-symbol sexpr env)
   (let* ((d (lookup env sexpr))
@@ -39,7 +39,7 @@
     ((boolean? sexpr) (emit-bool sexpr env))
     ((number? sexpr)  (emit-number sexpr env))
     ((string? sexpr)  (emit-string sexpr env))
-    ((symbol? sexpr)  (emit-expr "call %Val @make_sym_val(i8* " (emit-const (string sexpr)) ")"))
+    ((symbol? sexpr)  (emit-expr "call %Val @make_sym_val(i64 " (string-length (string sexpr)) ", i8* " (emit-const (string sexpr)) ")"))
     ((list? sexpr)
      (let ((es (map (lambda (s) (emit-quote s env)) sexpr)))
        (define args (emit-expr "call %Args @make_args(i64 " (length es) ")"))
@@ -346,7 +346,7 @@
   (let loop ((env env)
              (depth 0))
     (if (not env)
-      (error "xc: undefined symbol" sym)
+      (error "xc: undefined symbol: " (string-append "[" sym "]"))
       (let* ((vals (car env))
              (def (assoc sym vals)))
         (if def
@@ -391,10 +391,10 @@
   (set! c (+ c 1))
   (define esc (escape s))
   (define dims (string-append "["
-                              (number->string (+ 1 (string-length s)))
+                              (number->string (string-length s))
                               " x i8]"))
   (define cv (string-append "@.str." (number->string c)))
-  (set! constants (cons (list cv " = private unnamed_addr constant " dims " c\"" esc "\\00\"") constants))
+  (set! constants (cons (list cv " = private unnamed_addr constant " dims " c\"" esc "\"") constants))
   cv)
 
 (define (emit-raw-line . args)
@@ -486,6 +486,7 @@
 
 (define (run exe . args)
   (let ((code (run-synchronous-subprocess exe args)))
+    (print "") ; flush stdout
     (if (not (= code 0))
       (let ()
         (println (string-append exe " error"))

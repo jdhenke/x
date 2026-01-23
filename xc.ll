@@ -2,14 +2,15 @@
 %Env = type { %Val*, %Env* } ; start of list, parent
 %Args = type { %Val*, i64 } ; start of list, size
 
+%Str = type { i64, i8* } ; n, data
 %Func = type { %Val(%Env, %Args)*, %Env } ; ptr, closure
 %List = type { %Val, %List* } ; car, cdr
 
 declare i8* @GC_malloc(i64)
 
 declare i64 @strlen(i8*)
-declare i8* @stpcpy(i8*, i8*)
-declare i32 @strcmp(i8*, i8*)
+declare ptr @memcpy(ptr, ptr, i64)
+declare i32 @memcmp(ptr, ptr, i64)
 
 declare i32 @rand()
 
@@ -104,11 +105,11 @@ define %Env @make_global_env(i32 %argc, i8** %argv) {
   ret %Env %e2
 }
 
-@.str.runtime = private unnamed_addr constant [2 x i8] c"c\00"
+@.str.runtime = private unnamed_addr constant [1 x i8] c"c"
 
 define void @store_runtime(%Val* %vals, i64 %i) {
   %vp = getelementptr %Val, %Val* %vals, i64 %i
-  %v = call %Val @make_str_val(i8* @.str.runtime)
+  %v = call %Val @make_str_val(i64 1, i8* @.str.runtime)
   store %Val %v, %Val* %vp
   ret void
 }
@@ -157,7 +158,8 @@ done:
   ret %List* null
 more:
   %first = load i8*, i8** %p
-  %sv = call %Val @make_str_val(i8* %first)
+  %firstn = call i64 @strlen(i8* %first)
+  %sv = call %Val @make_str_val(i64 %firstn, i8* %first)
   %np = getelementptr i8**, i8** %p, i64 1
   %ni = sub i32 %n, 1
   %tail = call %List* @from_string_array(i32 %ni, i8** %np)
@@ -218,7 +220,7 @@ define %Val @sys_exit(%Env %env, %Args %args) {
 
 define %Val @sys_open(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 0)
-  %v1p = extractvalue %Val %v1, 1
+  %v1p = call i8* @to_cstring(%Val %v1)
   %v2v = call %Val @get_arg(%Args %args, i64 1)
   %v2i32 = call i32 @val_to_i32(%Val %v2v)
   %n = extractvalue %Args %args, 1
@@ -238,11 +240,22 @@ l3:
   ret %Val %outv3
 }
 
+define i8* @to_cstring(%Val %v) {
+  %sn = call i64 @val_to_str_n(%Val %v)
+  %sd = call i8* @val_to_str_d(%Val %v)
+  %size = add i64 %sn, 1
+  %out = call i8* @GC_malloc(i64 %size)
+  call i8* @memcpy(i8* %out, i8* %sd, i64 %sn)
+  %end = getelementptr i8, i8* %out, i64 %sn
+  store i8 0, i8* %end
+  ret i8* %out
+}
+
 define %Val @sys_write(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 0)
   %fd = call i32 @val_to_i32(%Val %v1)
   %v2 = call %Val @get_arg(%Args %args, i64 1)
-  %data = extractvalue %Val %v2, 1
+  %data = call i8* @val_to_str_d(%Val %v2)
   %v3 = call %Val @get_arg(%Args %args, i64 2)
   %n = call i64 @val_to_i64(%Val %v3)
   %w = call i32 @write(i32 %fd, i8* %data, i64 %n)
@@ -256,13 +269,9 @@ define %Val @sys_read(%Env %env, %Args %args) {
   %fd = call i32 @val_to_i32(%Val %v1)
   %v2 = call %Val @get_arg(%Args %args, i64 1)
   %n = call i64 @val_to_i64(%Val %v2)
-  %size = add i64 %n, 1
-  %a = call i8* @GC_malloc(i64 %size)
-  %nr = call i32 @read(i32 %fd, i8* %a, i64 %n)
-  %nr64 = sext i32 %nr to i64
-  %bp = getelementptr i8, i8* %a, i64 %nr64
-  store i8 0, i8* %bp
-  %out = tail call %Val @make_str_val(i8* %a)
+  %a = call i8* @GC_malloc(i64 %n)
+  %nr = call i64 @read(i32 %fd, i8* %a, i64 %n)
+  %out = tail call %Val @make_str_val(i64 %nr, i8* %a)
   ret %Val %out
 }
 
@@ -311,7 +320,16 @@ is_int:
   %cmpi = icmp eq i64 %i1, %i2
   ret i1 %cmpi
 is_str:
-  %cmpsi = call i32 @strcmp(i8* %d1, i8* %d2)
+  %sn1 = call i64 @val_to_str_n(%Val %v1)
+  %sn2 = call i64 @val_to_str_n(%Val %v2)
+  %ncmp = icmp eq i64 %sn1, %sn2
+  br i1 %ncmp, label %str_cmp, label %no
+no:
+  ret i1 0
+str_cmp:
+  %sd1 = call i8* @val_to_str_d(%Val %v1)
+  %sd2 = call i8* @val_to_str_d(%Val %v2)
+  %cmpsi = call i32 @memcmp(i8* %sd1, i8* %sd2, i64 %sn1)
   %cmps = icmp eq i32 %cmpsi, 0
   ret i1 %cmps
 is_list:
@@ -369,7 +387,7 @@ define %Val @sys_waitpid(%Env %env, %Args %args) {
 
 define %Val @sys_execve(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 0)
-  %path = extractvalue %Val %v1, 1
+  %path = call i8* @to_cstring(%Val %v1)
   %v2 = call %Val @get_arg(%Args %args, i64 1)
   %argsa = call i8** @to_str_array(%Val %v2)
   %v3 = call %Val @get_arg(%Args %args, i64 2)
@@ -398,7 +416,7 @@ header:
 body:
   %vp = getelementptr %List, %List* %head, i64 0, i32 0
   %elv = load %Val, %Val* %vp
-  %s = extractvalue %Val %elv, 1
+  %s = call i8* @to_cstring(%Val %elv)
   %sp = getelementptr i8*, i8** %out, i64 %i
   store i8* %s, i8** %sp
   %cdrp = getelementptr %List, %List* %head, i64 0, i32 1
@@ -422,6 +440,22 @@ define i64 @val_to_i64(%Val %v) {
   %ip = bitcast i8* %d to i64*
   %i = load volatile i64, i64* %ip
   ret i64 %i
+}
+
+define i64 @val_to_str_n(%Val %v) {
+  %rp = extractvalue %Val %v, 1
+  %sp = bitcast i8* %rp to %Str*
+  %snp = getelementptr %Str, %Str* %sp, i64 0, i32 0
+  %n = load i64, i64* %snp
+  ret i64 %n
+}
+
+define i8* @val_to_str_d(%Val %v) {
+  %rp = extractvalue %Val %v, 1
+  %sp = bitcast i8* %rp to %Str*
+  %sdp = getelementptr %Str, %Str* %sp, i64 0, i32 1
+  %d = load i8*, i8** %sdp
+  ret i8* %d
 }
 
 define %Val @sys_close(%Env %env, %Args %args) {
@@ -593,15 +627,21 @@ define %Val @make_int_val(i64 %x) {
   ret %Val %2
 }
 
-define %Val @make_str_val(i8* %s) {
+define %Val @make_str_val(i64 %n, i8* %s) {
   %1 = insertvalue %Val zeroinitializer, i8 3, 0
-  %2 = insertvalue %Val %1, i8* %s, 1
-  ret %Val %2
+  %s1 = insertvalue %Str zeroinitializer, i64 %n, 0
+  %s2 = insertvalue %Str %s1, i8* %s, 1
+  %size = ptrtoint %Val* getelementptr (%Str, %Str* null, i64 1) to i64
+  %data = call i8* @GC_malloc(i64 %size)
+  %sp = bitcast i8* %data to %Str*
+  store %Str %s2, %Str* %sp
+  %out = insertvalue %Val %1, i8* %data, 1
+  ret %Val %out
 }
 
-define %Val @make_sym_val(i8* %s) {
-  %1 = insertvalue %Val zeroinitializer, i8 5, 0
-  %2 = insertvalue %Val %1, i8* %s, 1
+define %Val @make_sym_val(i64 %n, i8* %s) {
+  %1 = call %Val @make_str_val(i64 %n, i8* %s)
+  %2 = insertvalue %Val %1, i8 5, 0
   ret %Val %2
 }
 
@@ -704,15 +744,13 @@ length_header:
 
 length_body:
   %vi = call %Val @get_arg(%Args %args, i64 %i)
-  %si = extractvalue %Val %vi, 1
-  %sl = call i64 @strlen(i8* %si)
+  %sl = call i64 @val_to_str_n(%Val %vi)
   %ni = add i64 %i, 1
   %nsize = add i64 %size, %sl
   br label %length_header
 
 alloc:
-  %total = add i64 %size, 1 ; null byte
-  %outp = call i8* @GC_malloc(i64 %total)
+  %outp = call i8* @GC_malloc(i64 %size)
   br label %copy_header
 
 copy_header: 
@@ -723,13 +761,15 @@ copy_header:
 
 copy_body:
   %jv = call %Val @get_arg(%Args %args, i64 %j)
-  %js = extractvalue %Val %jv, 1
-  %nloc = call i8* @stpcpy(i8* %loc, i8* %js)
+  %jsn = call i64 @val_to_str_n(%Val %jv)
+  %jsd = call i8* @val_to_str_d(%Val %jv)
+  call i8* @memcpy(i8* %loc, i8* %jsd, i64 %jsn)
+  %nloc = getelementptr i8, i8* %loc, i64 %jsn
   %nj = add i64 1, %j
   br label %copy_header
 
 done:
-  %out = tail call %Val @make_str_val(i8* %outp)
+  %out = tail call %Val @make_str_val(i64 %size, i8* %outp)
   ret %Val %out
 }
 
@@ -857,8 +897,7 @@ define %Val @call_list_length(%Env %env, %Args %args) {
 
 define %Val @call_string_length(%Env %env, %Args %args) {
   %v0 = call %Val @get_arg(%Args %args, i64 0)
-  %d = extractvalue %Val %v0, 1
-  %n = call i64 @strlen(i8* %d)
+  %n = call i64 @val_to_str_n(%Val %v0)
   %out = tail call %Val @make_int_val(i64 %n)
   ret %Val %out
 }
@@ -866,37 +905,44 @@ define %Val @call_string_length(%Env %env, %Args %args) {
 define %Val @call_string_lt(%Env %env, %Args %args) {
   %v1 = call %Val @get_arg(%Args %args, i64 0)
   %v2 = call %Val @get_arg(%Args %args, i64 1)
-  %s1 = extractvalue %Val %v1, 1
-  %s2 = extractvalue %Val %v2, 1
-  %result = call i32 @strcmp(i8* %s1, i8* %s2)
-  %is_less = icmp slt i32 %result, 0
-  %out = tail call %Val @make_bool_val(i1 %is_less)
+  %sn1 = call i64 @val_to_str_n(%Val %v1)
+  %sn2 = call i64 @val_to_str_n(%Val %v2)
+  %sd1 = call i8* @val_to_str_d(%Val %v1)
+  %sd2 = call i8* @val_to_str_d(%Val %v2)
+  %lcmp = icmp ult i64 %sn1, %sn2
+  %minl = select i1 %lcmp, i64 %sn1, i64 %sn2
+  %scmp  = call i32 @memcmp(i8* %sd1, i8* %sd2, i64 %minl)
+  %seq = icmp eq i32 %scmp, 0
+  br i1 %seq, label %ret_lcmp, label %ret_scmp
+ret_lcmp:
+  %lout = tail call %Val @make_bool_val(i1 %lcmp)
+  ret %Val %lout
+ret_scmp:
+  %sb = icmp slt i32 %scmp, 0
+  %out = tail call %Val @make_bool_val(i1 %sb)
   ret %Val %out
 }
 
 define %Val @call_string_list(%Env %env, %Args %args) {
   %v0 = call %Val @get_arg(%Args %args, i64 0)
-  %s = extractvalue %Val %v0, 1
-  %l = call %List* @append_string_list(i8* %s)
+  %sn = call i64 @val_to_str_n(%Val %v0)
+  %sd = call i8* @val_to_str_d(%Val %v0)
+  %l = call %List* @append_string_list(i64 %sn, i8* %sd)
   %out = tail call %Val @make_list_val(%List* %l)
   ret %Val %out
 }
 
-define %List* @append_string_list(i8* %s) {
-  %b = load i8, i8* %s
-  %cmp = icmp eq i8 %b, 0
+define %List* @append_string_list(i64 %n, i8* %s) {
+  %cmp = icmp eq i64 %n, 0
   br i1 %cmp, label %end, label %more
 end:
   ret %List* null
 
 more:
-  %c = call i8* @GC_malloc(i64 2) ; 1 byte + null
-  store i8 %b, i8* %c
-  %np = getelementptr i8, i8* %c, i64 1
-  store i8 0, i8* %np
-  %v = call %Val @make_str_val(i8* %c)
+  %v = call %Val @make_str_val(i64 1, i8* %s)
+  %nn = sub i64 %n, 1
   %ns = getelementptr i8, i8* %s, i64 1
-  %tail = call %List* @append_string_list(i8* %ns)
+  %tail = call %List* @append_string_list(i64 %nn, i8* %ns)
   %out = call %List* @cons(%Val %v, %List* %tail)
   ret %List* %out
 }
