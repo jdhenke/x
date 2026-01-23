@@ -21,13 +21,28 @@
                 (loop (cons c out)))))))
       ",")))
 
-(define (p1 n)
-  (let* ((s (number->string n))
-         (n (string-length s))
+(define (p1 s)
+  (let* ((n (string-length s))
          (m (/ n 2)))
     (equal? (substring s 0 m) (substring s m n))))
 
-(define (p2 n) #f)
+(define (string-repeats? s n)
+  (if (= (modulo (string-length s) n) 0)
+    (let loop ((i n))
+      (if (= i (string-length s))
+        #t
+        (if (equal? (substring s (- i n) i) (substring s i (+ i n)))
+          (loop (+ i n))
+          #f)))
+    #f))
+
+(define (p2 s)
+  (let loop ((i 1))
+    (if (<= i (/ (string-length s) 2))
+      (if (string-repeats? s i)
+        #t
+        (loop (+ i 1)))
+      #f)))
 
 (let ((rs (get-ranges)))
   (let outer ((rs rs) (part1 0) (part2 0))
@@ -38,9 +53,9 @@
       (let* ((rg (car rs))
              (l (car rg))
              (r (cadr rg)))
-        (println rg)
         (let inner ((x l) (part1 part1) (part2 part2))
           (if (> x r)
             (outer (cdr rs) part1 part2)
-            (inner (+ x 1) (+ part1 (if (p1 x) x 0)) (+ part2 (if (p2 x) x 0)))))))))
+            (let ((s (number->string x)))
+              (inner (+ x 1) (+ part1 (if (p1 s) x 0)) (+ part2 (if (p2 s) x 0))))))))))
   
