@@ -87,9 +87,9 @@ A few comparisons and notes:
 - In contrast to Graham's faithful reproduction of McCarthy's work, this
 (selfishly) diverges from a simple port of the common lisp to scheme.
 - There's no `define`, `set`, or `let`; only anonymous `lambda` functions.
-- Reuse of definitions is used by [Immediately Invoked Function
+- Reuse of definitions is made possibly by using [Immediately Invoked Function
 Expressions](https://en.wikipedia.org/wiki/Immediately_invoked_function_expression)
-- Recursion is made possibly through the [Y
+- Recursion is made possible through the [Y
 Combinator](https://en.wikipedia.org/wiki/Fixed-point_combinator#Y_combinator),
 ironically the name of the world's most famous startup accelerator that Paul
 Graham co-founded.
