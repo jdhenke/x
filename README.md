@@ -81,7 +81,7 @@ interpeters.
 
 ## Examples: Advent of Code
 
-See [`./aoc`](./aoc) for solutions to Advent of Code puzzles written in x.
+See [`aoc/`](./aoc) for solutions to Advent of Code puzzles written in x.
 
 You can run with any runtime e.g.:
 
