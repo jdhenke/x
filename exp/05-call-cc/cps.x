@@ -103,7 +103,14 @@
 
 (define (cps-if sexpr kexpr)
   (define rv (gp))
-  (cps (second sexpr) (list 'lambda (list rv) (list 'if rv (cps (third sexpr) kexpr) (if (> (length sexpr) 3) (cps (fourth sexpr) kexpr) #f)))))
+  (cps (second sexpr)
+       (list 'lambda
+             (list rv)
+             (list 'if rv
+                   (cps (third sexpr) kexpr)
+                   (if (> (length sexpr) 3)
+                     (cps (fourth sexpr) kexpr)
+                     (list kexpr #f))))))
 
 (define (cps-cond sexpr kexpr)
   (let loop ((conds (reverse (cdr sexpr))) (out (list kexpr #f)))
