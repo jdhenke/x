@@ -77,7 +77,10 @@ itself byte-for-byte, run:
 ```
 
 Note: for performance reasons, this limits to chains that do not run nested
-interpeters.
+interpeters, and even then, the `Ic*` checks still take a minute. See the
+[nesting](./exp/03-nesting/) experiment to explore this further for the x
+runtime or the [minimal `eval`](./exp/02-min-eval/) to explore several levels
+of nesting for a simpler runtime.
 
 ## Examples: Advent of Code
 
