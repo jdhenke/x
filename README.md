@@ -61,8 +61,7 @@ To have `xc` only compile and not run, use `-o <path>` e.g.
 ```
 
 Note: all three runtimes support [tail
-recursion](https://en.wikipedia.org/wiki/Tail_call). See
-[below](#verify-callcc) for details on `call/cc` support.
+recursion](https://en.wikipedia.org/wiki/Tail_call).
 
 ### Verify
 
@@ -79,30 +78,6 @@ itself byte-for-byte, run:
 
 Note: for performance reasons, this limits to chains that do not run nested
 interpeters.
-
-### Verify `call/cc`
-
-Support for
-[continuations](https://en.wikipedia.org/wiki/Call-with-current-continuation)
-varies by runtime:
-
-- `./xs` inherits support from MIT scheme
-- `./xi` supports by internally representing computations in [Continuation-Passing
-  Style](https://en.wikipedia.org/wiki/Continuation-passing_style) (CPS)
-- `./xc` does not support itself, but accepts externally CPS-converted code using `./cps`
-
-These can each be tested with:
-
-```bash
-cat test-k.x | ./xs
-cat test-k.x | ./xi
-cat test-k.x | ./cps | ./xc
-```
-
-Or by running: [`./verify-k`](./verify-k)
-
-Note: [`test-k.x`](./test-k.x) purposefully produces random pairings (that
-still satisfy constraints!) each time.
 
 ## Examples: Advent of Code
 
@@ -124,4 +99,5 @@ See [`exp/`](./exp/) for some motivating or follow-on experiments to x.
 2. See a [minimal `eval`](./exp/02-min-eval/) that can evaluate itself.
 3. See how [nesting](./exp/03-nesting/) runtimes works.
 4. See how a [trusting trust](./exp/04-trusting-trust/) attack is implemented in x.
+5. See how to reify control flow with [`call/cc`](./exp/05-call-cc/) in x.
 

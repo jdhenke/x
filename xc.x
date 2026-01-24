@@ -469,7 +469,6 @@
                    (list (symbol "modulo") 33)
                    (list (symbol "*") 34)
                    (list (symbol "/") 35)
-                   (list (symbol "pair?") 36)
                    (list (symbol "command-line") 39)
                    (list (symbol "runtime") 40)
                    (list (symbol "random") 41)

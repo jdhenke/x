@@ -245,7 +245,6 @@
           (list (symbol "modulo") modulo)
           (list (symbol "null?") null?)
           (list (symbol "number?") number?)
-          (list (symbol "pair?") pair?)
           (list (symbol "random") random)
           (list (symbol "set-car!") set-car!)
           (list (symbol "set-cdr!") set-cdr!)

@@ -56,7 +56,6 @@ define %Env @make_global_env(i32 %argc, i8** %argv) {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list_length, i64 27)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_car, i64 30)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_set_cdr, i64 32)
-  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_pair, i64 36)
   ; func
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_function, i64 26)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_apply, i64 3)
@@ -1006,24 +1005,6 @@ define %Val @call_div(%Env %env, %Args %args) {
   %r = sdiv i64 %i0, %i1
   %out = tail call %Val @make_int_val(i64 %r)
   ret %Val %out
-}
-
-define %Val @call_pair(%Env %env, %Args %args) {
-  %v0 = call %Val @get_arg(%Args %args, i64 0)
-  %t = extractvalue %Val %v0, 0
-  %tcmp = icmp eq i8 %t, 4
-  br i1 %tcmp, label %check_cdr, label %no
-check_cdr:
-  %d = extractvalue %Val %v0, 1
-  %l = bitcast i8* %d to %List*
-  %vcmp = icmp eq %List* %l, null
-  br i1 %vcmp, label %no, label %yes
-yes:
-  %yesv = tail call %Val @make_bool_val(i1 1)
-  ret %Val %yesv
-no:
-  %nov = tail call %Val @make_bool_val(i1 0)
-  ret %Val %nov
 }
 
 define %Val @call_substring(%Env %env, %Args %args) {
