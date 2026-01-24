@@ -1,0 +1,5 @@
+(println "enter root password:")
+(define pass (string (read)))
+(if (equal? pass "$uper$ecure")
+  (println "You now have root access.")
+  (println "Access denied"))
