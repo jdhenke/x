@@ -1,5 +1,5 @@
-(println "Enter root password:")
+(print "Enter root password: ")
 (define pass (string (read)))
-(if (equal? pass "$uper$ecure")
-  (println "Root access granted")
+(if (equal? pass "r007p4$$")
+  (println "Root access granted!")
   (println "Access denied"))

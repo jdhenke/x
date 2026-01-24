@@ -123,4 +123,5 @@ See [`exp/`](./exp/) for some motivating or follow-on experiments to x.
 1. See how the [`null`](./exp/01-null/) solution actually passes verification.
 2. See a [minimal `eval`](./exp/02-min-eval/) that can evaluate itself.
 3. See how [nesting](./exp/03-nesting/) runtimes works.
+4. See how a [trusting trust](./exp/04-trusting-trust/) attack is implemented in x.
 
