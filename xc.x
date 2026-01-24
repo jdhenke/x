@@ -334,6 +334,7 @@
 
 (define (emit-main all env)
   (emit-raw-line "define i32 @main(i32 %argc, i8** %argv) {" )
+  (emit-line "call void @seed_random()")
   (emit-line "%env = call %Env @make_global_env(i32 %argc, i8** %argv)")
   (define m (emit-body all env #f (list) #f #f))
   (define args (emit-expr "insertvalue %Args undef, i64 0, 1"))

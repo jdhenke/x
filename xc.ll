@@ -13,6 +13,8 @@ declare ptr @memcpy(ptr, ptr, i64)
 declare i32 @memcmp(ptr, ptr, i64)
 
 declare i32 @rand()
+declare i32 @srand()
+declare i64 @time(i64*)
 
 declare void @exit(i32) noreturn
 declare i32 @open(i8*, i32, i32)
@@ -1018,4 +1020,11 @@ define %Val @call_substring(%Env %env, %Args %args) {
   %nsd = getelementptr i8, i8* %sd, i64 %i
   %out = tail call %Val @make_str_val(i64 %n, i8* %nsd)
   ret %Val %out
+}
+
+define void @seed_random() {
+  %t = call i64 @time(i64* null)
+  %seed = trunc i64 %t to i32
+  call void @srand(i32 %seed)
+  ret void
 }
