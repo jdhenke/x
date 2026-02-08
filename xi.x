@@ -41,7 +41,7 @@
         (let ((val-thunk (eval (third sexpr))))
           (lambda (env k)
             (val-thunk env (lambda (val)
-              (set-car! env (vector-append (car env) (list name val)))
+              (frame-define! env name val)
               (k val)))))))))
 
 (define (define-func sexpr)
@@ -56,7 +56,7 @@
     (define body-thunk (eval-body #f named rest body))
     (lambda (env k)
       (body-thunk env (lambda (f)
-        (set-car! env (vector-append (car env) (list name f)))
+        (frame-define! env name f)
         (k f))))))
       
 
@@ -115,11 +115,15 @@
               (arg-loop (cdr args) (cons val vals)))))))))
 
 (define (eval-body self named rest body)
+  (define num-args (+ (length named) (if rest 1 0)))
+  (define num-defs
+    (length (filter (lambda (s) (and (list? s) (not (null? s)) (equal? (car s) 'define))) body)))
+  (define frame-size (+ num-args num-defs))
   (let ((thunks (map eval body)))
     (lambda (env k)
       (let ((env (list (make-vector 0 #f) env)))
         (define (f k . args)
-          (let ((env (list (bind-args args named rest) env)))
+          (let ((env (list (bind-args args named rest frame-size) env (list num-args))))
             (let loop ((thunks thunks))
               (cond ((null? thunks) (k #f))
                     ((null? (cdr thunks)) ((car thunks) env k))
@@ -127,13 +131,24 @@
         (if self (set-car! env (list->vector (list (list self f)))))
         (k f)))))
 
-(define (bind-args args named rest)
-  (list->vector
-    (append
-      (zip named args)
-      (if rest
-        (list (list rest (sublist args (length named) (length args))))
-        (list)))))
+(define (bind-args args named rest frame-size)
+  (let ((v (make-vector frame-size (list #f #f)))
+        (nnamed (length named)))
+    (let loop ((i 0) (ns named) (as args))
+      (if (not (null? ns))
+        (let ()
+          (vector-set! v i (list (car ns) (car as)))
+          (loop (+ i 1) (cdr ns) (cdr as)))))
+    (if rest
+      (vector-set! v nnamed (list rest (sublist args nnamed (length args)))))
+    v))
+
+(define (frame-define! env name val)
+  (if (and (not (null? (cddr env))) (caddr env))
+    (let ((cursor (caddr env)))
+      (vector-set! (car env) (car cursor) (list name val))
+      (set-car! cursor (+ (car cursor) 1)))
+    (set-car! env (vector-append (car env) (list name val)))))
 
 (define (eval-if sexpr)
   (let ((p-thunk (eval (cadr sexpr)))
