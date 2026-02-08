@@ -196,6 +196,51 @@
 (test #t (string-number? "1"))
 (test #t (string-number? "0"))
 
+; vectors
+(define v (make-vector 3 0))
+(test 3 (vector-length v))
+(test 0 (vector-ref v 0))
+(vector-set! v 1 42)
+(test 42 (vector-ref v 1))
+(test #t (vector? v))
+(test #f (vector? (list 1 2)))
+(test #f (vector? 42))
+
+(define v2 (list->vector (list 10 20 30)))
+(test 3 (vector-length v2))
+(test 10 (vector-ref v2 0))
+(test 20 (vector-ref v2 1))
+(test 30 (vector-ref v2 2))
+
+(define l2 (vector->list v2))
+(test (list 10 20 30) l2)
+
+(define v3 (vector 1 2 3))
+(test 3 (vector-length v3))
+(test 1 (vector-ref v3 0))
+(test 2 (vector-ref v3 1))
+(test 3 (vector-ref v3 2))
+
+(define v4 (vector-append v3 4 5))
+(test 5 (vector-length v4))
+(test 1 (vector-ref v4 0))
+(test 5 (vector-ref v4 4))
+
+; equal? on vectors
+(test #t (equal? (vector 1 2 3) (vector 1 2 3)))
+(test #f (equal? (vector 1 2 3) (vector 1 2 4)))
+(test #f (equal? (vector 1 2) (vector 1 2 3)))
+
+; vector literal syntax
+(test #t (equal? #(1 2 3) (vector 1 2 3)))
+(test 2 (vector-ref #(1 2 3) 1))
+
+; empty vector
+(define v5 (make-vector 0 #f))
+(test 0 (vector-length v5))
+(test (list) (vector->list v5))
+(test #t (equal? (list->vector (list)) (make-vector 0 #f)))
+
 (if pass
   #t
   (let ()

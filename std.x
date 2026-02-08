@@ -11,6 +11,16 @@
           ((boolean? x)   (print (if x "#t" "#f")))
           ((number? x)    (print (number->string x)))
           ((function? x)  (print "λ"))
+          ((vector? x)
+           (let ()
+             (print "#(")
+             (let loop ((i 0) (n (vector-length x)))
+               (if (< i n)
+                 (let ()
+                   (print (vector-ref x i))
+                   (if (< (+ i 1) n) (print " "))
+                   (loop (+ i 1) n))))
+             (print ")")))
           ((list? x)
            (let ()
              (print "(")
@@ -164,6 +174,26 @@
           (append (sort smaller less-than?)
                   (list pivot)
                   (sort greater less-than?))))))
+
+;;; VECTORS
+
+(define (vector . args) (list->vector args))
+
+(define (vector-append v . vals)
+  (let* ((old-len (vector-length v))
+         (new-len (+ old-len (length vals)))
+         (nv (make-vector new-len #f)))
+    (let loop ((i 0))
+      (if (< i old-len)
+        (let ()
+          (vector-set! nv i (vector-ref v i))
+          (loop (+ i 1)))))
+    (let loop ((i 0) (vals vals))
+      (if (null? vals)
+        nv
+        (let ()
+          (vector-set! nv (+ old-len i) (car vals))
+          (loop (+ i 1) (cdr vals)))))))
 
 ;;; STRINGS
 
@@ -345,9 +375,11 @@
           (error "unexpected EOF reading list" (reverse vals))
           (loop (cons val vals)))))))
 
-(define (read-boolean)
+(define (read-hash)
   (read-c)
-  (equal? (read-c) "t"))
+  (if (equal? (peek-c) "(")
+    (list->vector (read-list))
+    (equal? (read-c) "t")))
 
 (define (read-number)
   (string->number (read-matching string-number?)))
@@ -391,7 +423,7 @@
     (cond
       ((eof? c) c)
       ((equal? c "(")     (read-list))
-      ((equal? c "#")     (read-boolean))
+      ((equal? c "#")     (read-hash))
       ((string-number? c) (read-number))
       ((equal? c "\"")    (read-string))
       ((equal? c "'")     (read-quote))

@@ -5,6 +5,7 @@
 %Str = type { i64, i8* } ; n, data
 %Func = type { %Val(%Env, %Args)*, %Env } ; ptr, closure
 %List = type { %Val, %List* } ; car, cdr
+%Vec = type { i64, %Val* } ; length, data array
 
 declare i8* @GC_malloc(i64)
 
@@ -30,7 +31,7 @@ declare i32 @waitpid(i32, i32*, i32)
 define %Env @make_global_env(i32 %argc, i8** %argv) {
   ; create env with val in it
   %fsize = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
-  %size = mul i64 %fsize, 44
+  %size = mul i64 %fsize, 51
   %valsp = call i8* @GC_malloc(i64 %size)
   %vals = bitcast i8* %valsp to %Val*
 
@@ -95,6 +96,15 @@ define %Env @make_global_env(i32 %argc, i8** %argv) {
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_fork, i64 9)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_execve, i64 12)
   call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @sys_waitpid, i64 11)
+
+  ; vec
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_make_vector, i64 44)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_vector_ref, i64 45)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_vector_set, i64 46)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_vector_length, i64 47)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @is_vector, i64 48)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_list_to_vector, i64 49)
+  call void @store_native_func(%Val* %vals, %Val(%Env, %Args)* @call_vector_to_list, i64 50)
 
   ; set runtime
   call void @store_runtime(%Val* %vals, i64 40)
@@ -310,6 +320,7 @@ data:
     i8 4, label %is_list
     i8 5, label %is_str
     i8 6, label %is_func
+    i8 7, label %is_vec
   ]
 is_bool:
   %b1 = call i1 @to_i1(%Val %v1)
@@ -342,6 +353,11 @@ is_list:
 is_func:
   %cmpf = icmp eq i8* %d1, %d2
   ret i1 %cmpf
+is_vec:
+  %vp1 = bitcast i8* %d1 to %Vec*
+  %vp2 = bitcast i8* %d2 to %Vec*
+  %cmpv = call i1 @vec_equal(%Vec* %vp1, %Vec* %vp2)
+  ret i1 %cmpv
 }
 
 define i1 @list_equal(%List* %l1, %List* %l2) {
@@ -1027,4 +1043,158 @@ define void @seed_random() {
   %seed = trunc i64 %t to i32
   call void @srand(i32 %seed)
   ret void
+}
+
+define %Val @make_vec_val(i64 %n, %Val* %data) {
+  %1 = insertvalue %Val zeroinitializer, i8 7, 0
+  %v1 = insertvalue %Vec zeroinitializer, i64 %n, 0
+  %v2 = insertvalue %Vec %v1, %Val* %data, 1
+  %size = ptrtoint %Vec* getelementptr (%Vec, %Vec* null, i64 1) to i64
+  %p = call i8* @GC_malloc(i64 %size)
+  %vp = bitcast i8* %p to %Vec*
+  store %Vec %v2, %Vec* %vp
+  %2 = insertvalue %Val %1, i8* %p, 1
+  ret %Val %2
+}
+
+define %Val @call_make_vector(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %n = call i64 @val_to_i64(%Val %v0)
+  %fill = call %Val @get_arg(%Args %args, i64 1)
+  %vsize = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
+  %total = mul i64 %vsize, %n
+  %p = call i8* @GC_malloc(i64 %total)
+  %data = bitcast i8* %p to %Val*
+  br label %header
+header:
+  %i = phi i64 [ 0, %0 ], [ %ni, %body ]
+  %cmp = icmp slt i64 %i, %n
+  br i1 %cmp, label %body, label %done
+body:
+  %ep = getelementptr %Val, %Val* %data, i64 %i
+  store %Val %fill, %Val* %ep
+  %ni = add i64 %i, 1
+  br label %header
+done:
+  %out = tail call %Val @make_vec_val(i64 %n, %Val* %data)
+  ret %Val %out
+}
+
+define %Val @call_vector_ref(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %rp = extractvalue %Val %v0, 1
+  %vp = bitcast i8* %rp to %Vec*
+  %dp = getelementptr %Vec, %Vec* %vp, i64 0, i32 1
+  %data = load %Val*, %Val** %dp
+  %idx = call i64 @val_to_i64(%Val %v1)
+  %ep = getelementptr %Val, %Val* %data, i64 %idx
+  %out = load %Val, %Val* %ep
+  ret %Val %out
+}
+
+define %Val @call_vector_set(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %v1 = call %Val @get_arg(%Args %args, i64 1)
+  %v2 = call %Val @get_arg(%Args %args, i64 2)
+  %rp = extractvalue %Val %v0, 1
+  %vp = bitcast i8* %rp to %Vec*
+  %dp = getelementptr %Vec, %Vec* %vp, i64 0, i32 1
+  %data = load %Val*, %Val** %dp
+  %idx = call i64 @val_to_i64(%Val %v1)
+  %ep = getelementptr %Val, %Val* %data, i64 %idx
+  store %Val %v2, %Val* %ep
+  ret %Val %v2
+}
+
+define %Val @call_vector_length(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %rp = extractvalue %Val %v0, 1
+  %vp = bitcast i8* %rp to %Vec*
+  %np = getelementptr %Vec, %Vec* %vp, i64 0, i32 0
+  %n = load i64, i64* %np
+  %out = tail call %Val @make_int_val(i64 %n)
+  ret %Val %out
+}
+
+define %Val @is_vector(%Env %env, %Args %args) {
+  %out = tail call %Val @is_type(%Args %args, i8 7)
+  ret %Val %out
+}
+
+define %Val @call_list_to_vector(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %d = extractvalue %Val %v0, 1
+  %lp = bitcast i8* %d to %List*
+  %n = call i64 @list_length(%List* %lp)
+  %vsize = ptrtoint %Val* getelementptr (%Val, %Val* null, i64 1) to i64
+  %total = mul i64 %vsize, %n
+  %p = call i8* @GC_malloc(i64 %total)
+  %data = bitcast i8* %p to %Val*
+  br label %l2v_header
+l2v_header:
+  %i = phi i64 [ 0, %0 ], [ %ni, %l2v_body ]
+  %head = phi %List* [ %lp, %0 ], [ %cdr, %l2v_body ]
+  %cmp = icmp slt i64 %i, %n
+  br i1 %cmp, label %l2v_body, label %l2v_done
+l2v_body:
+  %valp = getelementptr %List, %List* %head, i64 0, i32 0
+  %val = load %Val, %Val* %valp
+  %ep = getelementptr %Val, %Val* %data, i64 %i
+  store %Val %val, %Val* %ep
+  %cdrp = getelementptr %List, %List* %head, i64 0, i32 1
+  %cdr = load %List*, %List** %cdrp
+  %ni = add i64 %i, 1
+  br label %l2v_header
+l2v_done:
+  %out = tail call %Val @make_vec_val(i64 %n, %Val* %data)
+  ret %Val %out
+}
+
+define %Val @call_vector_to_list(%Env %env, %Args %args) {
+  %v0 = call %Val @get_arg(%Args %args, i64 0)
+  %rp = extractvalue %Val %v0, 1
+  %vp = bitcast i8* %rp to %Vec*
+  %np = getelementptr %Vec, %Vec* %vp, i64 0, i32 0
+  %n = load i64, i64* %np
+  %dp = getelementptr %Vec, %Vec* %vp, i64 0, i32 1
+  %data = load %Val*, %Val** %dp
+  %nm1 = sub i64 %n, 1
+  %l = call %List* @make_list(%Val* %data, %List* null, i64 %nm1)
+  %out = tail call %Val @make_list_val(%List* %l)
+  ret %Val %out
+}
+
+define i1 @vec_equal(%Vec* %v1, %Vec* %v2) {
+entry:
+  %n1p = getelementptr %Vec, %Vec* %v1, i64 0, i32 0
+  %n1 = load i64, i64* %n1p
+  %n2p = getelementptr %Vec, %Vec* %v2, i64 0, i32 0
+  %n2 = load i64, i64* %n2p
+  %ncmp = icmp eq i64 %n1, %n2
+  br i1 %ncmp, label %check, label %no
+no:
+  ret i1 0
+check:
+  %d1p = getelementptr %Vec, %Vec* %v1, i64 0, i32 1
+  %d1 = load %Val*, %Val** %d1p
+  %d2p = getelementptr %Vec, %Vec* %v2, i64 0, i32 1
+  %d2 = load %Val*, %Val** %d2p
+  br label %header
+header:
+  %i = phi i64 [ 0, %check ], [ %ni, %match ]
+  %cmp = icmp slt i64 %i, %n1
+  br i1 %cmp, label %body, label %yes
+body:
+  %e1p = getelementptr %Val, %Val* %d1, i64 %i
+  %e1 = load %Val, %Val* %e1p
+  %e2p = getelementptr %Val, %Val* %d2, i64 %i
+  %e2 = load %Val, %Val* %e2p
+  %ecmp = call i1 @val_equal(%Val %e1, %Val %e2)
+  br i1 %ecmp, label %match, label %no
+match:
+  %ni = add i64 %i, 1
+  br label %header
+yes:
+  ret i1 1
 }

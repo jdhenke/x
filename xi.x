@@ -5,6 +5,7 @@
         ((boolean? sexpr) (lambda (env k) (k sexpr)))
         ((number? sexpr)  (lambda (env k) (k sexpr)))
         ((string? sexpr)  (lambda (env k) (k sexpr)))
+        ((vector? sexpr)  (lambda (env k) (k sexpr)))
         ((symbol? sexpr)  (error "eval: unexpected symbol:" sexpr))
         (#t (error "unknown sexpr type" sexpr))))
 
@@ -40,7 +41,7 @@
         (let ((val-thunk (eval (third sexpr))))
           (lambda (env k)
             (val-thunk env (lambda (val)
-              (set-car! env (append (car env) (list (list name val) )))
+              (set-car! env (vector-append (car env) (list name val)))
               (k val)))))))))
 
 (define (define-func sexpr)
@@ -55,7 +56,7 @@
     (define body-thunk (eval-body #f named rest body))
     (lambda (env k)
       (body-thunk env (lambda (f)
-        (set-car! env (append (car env) (list (list name f))))
+        (set-car! env (vector-append (car env) (list name f)))
         (k f))))))
       
 
@@ -70,7 +71,7 @@
               (if (not env)
                 (error "xi: not present" c sexpr))
               (if (= depth (cadr c))
-                (let ((p (list-ref (car env) (caddr c))))
+                (let ((p (vector-ref (car env) (caddr c))))
                   (set-cdr! p (list val))
                   (k val))
                 (loop (cadr env) (+ depth 1)))))))))
@@ -109,29 +110,30 @@
           (f-thunk env (lambda (f)
             (apply f (cons k (reverse vals)))))
           ((car args)
-            (list (zip argnames (reverse vals)) env)
+            (list (list->vector (zip argnames (reverse vals))) env)
             (lambda (val)
               (arg-loop (cdr args) (cons val vals)))))))))
 
 (define (eval-body self named rest body)
   (let ((thunks (map eval body)))
     (lambda (env k)
-      (let ((env (list (list) env)))
+      (let ((env (list (make-vector 0 #f) env)))
         (define (f k . args)
           (let ((env (list (bind-args args named rest) env)))
             (let loop ((thunks thunks))
               (cond ((null? thunks) (k #f))
                     ((null? (cdr thunks)) ((car thunks) env k))
                     (#t ((car thunks) env (lambda (v) (loop (cdr thunks)))))))))
-        (if self (set-car! env (list (list self f))))
+        (if self (set-car! env (list->vector (list (list self f)))))
         (k f)))))
 
 (define (bind-args args named rest)
-  (append
-    (zip named args)
-    (if rest
-      (list (list rest (sublist args (length named) (length args))))
-      (list))))
+  (list->vector
+    (append
+      (zip named args)
+      (if rest
+        (list (list rest (sublist args (length named) (length args))))
+        (list)))))
 
 (define (eval-if sexpr)
   (let ((p-thunk (eval (cadr sexpr)))
@@ -203,7 +205,7 @@
       (lambda (env k)
         (let loop ((d 0) (env env))
           (if (= d depth)
-          (let ((p (list-ref (car env) offset)))
+          (let ((p (vector-ref (car env) offset)))
             (k (cadr p)))
           (loop (+ d 1) (cadr env))))))
     (let ()
@@ -225,18 +227,19 @@
 
 (define (make-env runtime)
   (list
+    (list->vector
+      (list
+        (list (symbol "apply")
+              (lambda (k f l)
+                (apply f (cons k l))))
+        (list (symbol "runtime") runtime)))
     (list
-      (list (symbol "apply")
-            (lambda (k f l)
-              (apply f (cons k l))))
-      (list (symbol "runtime") runtime))
-    (list
-      (map
-        (lambda (nl)
-          (list (car nl) (native-to-cps (car nl) (cadr nl))))
-        (list
+      (list->vector
+        (map
+          (lambda (nl)
+            (list (car nl) (native-to-cps (car nl) (cadr nl))))
+          (list
           (list (symbol "*") *)
-          (list (symbol "+") +)
           (list (symbol "+") +)
           (list (symbol "-") -)
           (list (symbol "/") /)
@@ -257,12 +260,15 @@
           (list (symbol "function?") function?)
           (list (symbol "length") length)
           (list (symbol "list") list)
+          (list (symbol "list->vector") list->vector)
           (list (symbol "list?") list?)
           (list (symbol "make-random-state") make-random-state)
+          (list (symbol "make-vector") make-vector)
           (list (symbol "modulo") modulo)
           (list (symbol "null?") null?)
           (list (symbol "number?") number?)
           (list (symbol "random") random)
+          (list (symbol "run-synchronous-subprocess") run-synchronous-subprocess)
           (list (symbol "set-car!") set-car!)
           (list (symbol "set-cdr!") set-cdr!)
           (list (symbol "string") string)
@@ -284,6 +290,11 @@
           (list (symbol "sys/read") sys/read)
           (list (symbol "sys/wait") sys/wait)
           (list (symbol "sys/write") sys/write)
+          (list (symbol "vector->list") vector->list)
+          (list (symbol "vector-length") vector-length)
+          (list (symbol "vector-ref") vector-ref)
+          (list (symbol "vector-set!") vector-set!)
+          (list (symbol "vector?") vector?)
           (list (symbol "with-input-from-file")
                 (lambda (path func)
                   (with-input-from-file
@@ -296,8 +307,7 @@
                     path
                     (lambda ()
                       (func (lambda (v) v))))))
-          (list (symbol "run-synchronous-subprocess") run-synchronous-subprocess)
-        ))
+        )))
       #f)))
 
 (define global (make-env runtime))
@@ -311,6 +321,7 @@
     ((boolean? sexpr) sexpr)
     ((number? sexpr)  sexpr)
     ((string? sexpr)  sexpr)
+    ((vector? sexpr)  sexpr)
     ((symbol? sexpr)  (bind-get-coords sexpr env))
 
     ((not (list? sexpr)) (error "bind: unknown sexpr type" sexpr))
@@ -380,7 +391,7 @@
   (let loop ((e env))
     (if (not e)
       e
-      (list (map car (car e)) (loop (cadr e))))))
+      (list (map car (vector->list (car e))) (loop (cadr e))))))
 
 (define (repl)
   (let loop ()
