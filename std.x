@@ -155,6 +155,7 @@
     (list-ref (cdr l) (- i 1))))
 
 (define (sort lst less-than?)
+  (println "called sort")
   (if (or (null? lst) (null? (cdr lst)))
       lst
       (let ((pivot (car lst))
