@@ -35,16 +35,24 @@
 (define (square x)
   (* x x))
 
-(define (distance p1 p2)
-  (apply sum (map (lambda (xs) (square (- (car xs) (cadr xs)))) (zip p1 p2))))
+;(define (distance p1 p2)
+;  (apply sum (map (lambda (xs) (square (- (car xs) (cadr xs)))) (zip p1 p2))))
 
-(define (pairs l)
+(define (distance p1 p2)
+  (let ((dx (- (car p1) (car p2)))
+        (dy (- (cadr p1) (cadr p2)))
+        (dz (- (caddr p1) (caddr p2))))
+    (+ (* dx dx) (* dy dy) (* dz dz))))
+
+(define (map-pairs f l)
   (let loop ((l1 l)
              (l2 (cdr l))
-             (out '()))
+             (out '())
+             (n 0))
+    (if (= 0 (modulo n 1000)) (println n))
     (cond ((null? (cdr l1)) out)
-          ((null? l2) (loop (cdr l1) (cddr l1) out))
-          (#t (loop l1 (cdr l2) (cons (list (car l1) (car l2)) out))))))
+          ((null? l2) (loop (cdr l1) (cddr l1) out n))
+          (#t (loop l1 (cdr l2) (cons (f (car l1) (car l2)) out) (+ n 1))))))
 
 (define (member x l)
   (cond ((null? l) #f)
@@ -57,8 +65,6 @@
 (define (connected-components nodes edges)
   (let loop ((edges edges)
              (comps (map (lambda (n) (list n)) nodes)))
-    (println (length edges))
-    (map println (sort comps (lambda (c1 c2) (< (length c2) (length c1)))))
     (if (null? edges)
       comps
       (let inner ((comps comps)
@@ -76,17 +82,24 @@
              (lambda (l)
                (map string->number (string-split l ",")))
              (get-lines f)))
+         (tmp (println "pairing..."))
+         (pairs (map-pairs (lambda (x1 x2)
+                              (list (distance x1 x2)
+                                    (list x1 x2)))
+                            points))
+         (tmp (println "sorting..."))
+         (sorted-pairs (sort
+                 pairs
+                 (lambda (i1 i2) (< (car i1) (car i2)))))
+         (tmp (println "collecting closest..."))
          (closest
            (map
              cadr
              (sublist
-               (sort
-                 (map (lambda (ps) (list (apply distance ps)
-                                         ps))
-                      (pairs points))
-                 (lambda (i1 i2) (< (car i1) (car i2))))
+               sorted-pairs 
                0
                n))))
+    (println "connecting...")
     (apply product
       (sublist
         (sort (map length (connected-components points closest)) >)
@@ -95,4 +108,4 @@
 
 ;(println (distance '(162 817 812) '(57 618 57)))
 (println "Day 8 Part 1 Test:" (day-8 "./aoc/2025/day8-test.txt" 10))
-(println "Day 8 Part 1" (day-8 "./aoc/2025/day8.txt" 100))
+(println "Day 8 Part 1" (day-8 "./aoc/2025/day8.txt" 1000))
