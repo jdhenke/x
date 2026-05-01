@@ -8,8 +8,8 @@
         (loop (cdr sl) (list) (cons (apply string-append (reverse cur)) out))
         (loop (cdr sl) (cons (car sl) cur) out)))))
 
-(define (get-lines f)
-  (with-input-from-file f
+(define (get-lines p)
+  (with-input-from-file p
     (lambda ()
       (let loop ((current (list)) (out (list)))
         (let ((c (read-c)))
@@ -62,50 +62,58 @@
 (define (overlap? a b)
   (find (lambda (x) (member x b)) a))
 
-(define (connected-components nodes edges)
+(define (connected-components nodes edges f)
   (let loop ((edges edges)
-             (comps (map (lambda (n) (list n)) nodes)))
-    (if (null? edges)
-      comps
-      (let inner ((comps comps)
-                  (conns '())
-                  (rest '()))
-        (cond ((null? comps) (loop (cdr edges) (cons (apply append conns) rest)))
-              ((overlap? (car comps) (car edges)) (inner (cdr comps) (cons (car comps) conns) rest))
-              (#t (inner (cdr comps) conns (cons (car comps) rest))))))))
+             (comps (map (lambda (n) (list n)) nodes))
+             (last #f)
+             (n 0))
+    (let ((out (f n last comps)))
+      (if out
+        out
+        (let inner ((comps comps)
+                    (conns '())
+                    (rest '()))
+          (cond ((null? comps) (loop (cdr edges) (cons (apply append conns) rest) (car edges) (+ n 1)))
+                ((overlap? (car comps) (car edges)) (inner (cdr comps) (cons (car comps) conns) rest))
+                (#t (inner (cdr comps) conns (cons (car comps) rest)))))))))
 
 ;;; DAY-8
 
-(define (day-8 f n)
+(define (day-8 p f)
   (let* ((points
            (map
              (lambda (l)
                (map string->number (string-split l ",")))
-             (get-lines f)))
+             (get-lines p)))
          (tmp (println "pairing..."))
          (pairs (map-pairs (lambda (x1 x2)
                               (list (distance x1 x2)
                                     (list x1 x2)))
                             points))
          (tmp (println "sorting..."))
-         (sorted-pairs (sort
+         (edges (map cadr (sort
                  pairs
-                 (lambda (i1 i2) (< (car i1) (car i2)))))
-         (tmp (println "collecting closest..."))
-         (closest
-           (map
-             cadr
-             (sublist
-               sorted-pairs 
-               0
-               n))))
+                 (lambda (i1 i2) (< (car i1) (car i2)))))))
     (println "connecting...")
-    (apply product
-      (sublist
-        (sort (map length (connected-components points closest)) >)
-        0
-        3))))
+    (connected-components points edges f)))
 
-;(println (distance '(162 817 812) '(57 618 57)))
-(println "Day 8 Part 1 Test:" (day-8 "./aoc/2025/day8-test.txt" 10))
-(println "Day 8 Part 1" (day-8 "./aoc/2025/day8.txt" 1000))
+(define (part-1-stop s)
+  (lambda (n e comps)
+    (if (< n s)
+      #f
+      (apply product
+        (sublist
+          (sort (map length comps) >)
+          0
+          3)))))
+
+(define (part-2-stop)
+  (lambda (n e comps)
+    (if (null? (cdr comps))
+      (* (caar e) (caadr e))
+      #f)))
+
+(println "Day 8 Part 1 Test:" (day-8 "./aoc/2025/day8-test.txt" (part-1-stop 10)))
+;(println "Day 8 Part 1" (day-8 "./aoc/2025/day8.txt" (part-1-stop 1000)))
+(println "Day 8 Part 2 Test:" (day-8 "./aoc/2025/day8-test.txt" (part-2-stop)))
+(println "Day 8 Part 2" (day-8 "./aoc/2025/day8.txt" (part-2-stop)))
